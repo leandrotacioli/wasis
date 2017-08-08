@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Properties>
+    <Config>
+        <DateFormat>dd/MM/yyyy</DateFormat>
+        <DecimalMark>COMMA</DecimalMark>
+        <LocaleLanguage>en</LocaleLanguage>
+        <LocaleCountry>US</LocaleCountry>
+    </Config>
+</Properties>
