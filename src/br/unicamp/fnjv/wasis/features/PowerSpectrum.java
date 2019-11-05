@@ -1,6 +1,7 @@
 package br.unicamp.fnjv.wasis.features;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import br.unicamp.fnjv.wasis.dsp.FFT;
@@ -8,12 +9,12 @@ import br.unicamp.fnjv.wasis.dsp.FFTWindowFunction;
 import br.unicamp.fnjv.wasis.libs.RoundNumbers;
 
 /**
- * Feature extraction class used to extract Power Spectrum (PS) from audio signal.
+ * Feature extraction class used to extract Power Spectrum (PS) from audio signals.
  * 
  * @author Leandro Tacioli
- * @version 1.0 - 18/Mai/2017
+ * @version 3.0 - 26/Out/2017
  */
-public class PowerSpectrum {
+public class PowerSpectrum extends Features {
 	/** Number of samples per frame */
     private final int FRAME_LENGTH = 1024;
     
@@ -29,45 +30,84 @@ public class PowerSpectrum {
     private double dblMaximumFrequency;
     private double dblFrequencySamples;
     
-    /**
-	 * List of frequency (Hz) and intensity (dBFS) for each bin.
-	 */
-	private List<PowerSpectrumValues> lstPowerSpectrumValues;
-	
-	/**
-	 * Retorna a lista com os valores de frequência 
-	 * e a intensidade máxima (dB) para cada faixa de frequência.
-	 * 
-	 * @return lstPowerSpectrumValues
-	 */
-	public List<PowerSpectrumValues> getPS() {
-		return lstPowerSpectrumValues;
-	}
+    private int intFrequencySamples;
+    
+	/** Final Power Spectrum Coefficients<br>
+	 * ps[0][x] - Frequency values
+	 * <br>
+	 * ps[1][x] - Decibel values */
+    private double[][] ps;
     
 	/**
-     * Feature extraction class used to extract Power Spectrum (PS) from audio signal.
+     * Feature extraction class used to extract Power Spectrum (PS) from audio signal.<br>
+     * <br>
+     * OBS: Assumes initial frequency = 0Hz, and final frequency = 22050Hz.
      */
-    public PowerSpectrum() {
-    	
+    public PowerSpectrum(double dblSampleRate) {
+    	this(dblSampleRate, 0, (int) dblSampleRate / 2);
     }
     
-    public void process(double[] samples, double dblSampleRate) {
-    	// Initiliaze list of frequency (Hz) and intensity (dBFS)
-        dblMaximumFrequency = dblSampleRate / 2;        // Divides by 2: Teorema Nyquist-Shannon - Default Value = 22050Hz
-    	dblFrequencySamples = FRAME_LENGTH / 2;         // Default value = 512
-    	int intFrequencySamples = (int) dblFrequencySamples;
+    /**
+     * Feature extraction class used to extract Power Spectrum (PS) from an audio signals.
+     * 
+     * @param dblSampleRate
+     * @param intInitialFrequency
+     * @param intFinalFrequency
+     */
+    public PowerSpectrum(double dblSampleRate, int intInitialFrequency, int intFinalFrequency) {
+    	// ******************************************************************************************8
+    	// Initiliaze matrix of frequency (Hz) and intensity (dBFS)
+        dblMaximumFrequency = dblSampleRate / 2;          // Divides by 2: Teorema Nyquist-Shannon - Default Value = 22050Hz
+    	dblFrequencySamples = FRAME_LENGTH / 2;           // Default value = 512
+    	intFrequencySamples = (int) dblFrequencySamples;
     	
-    	lstPowerSpectrumValues = new ArrayList<PowerSpectrumValues>();
+    	// Computes the final number of coefficients filtering initial and final frequencies
+    	List<Integer> lstCoefficients = new ArrayList<Integer>();
     	
-    	for (int indexFrequency = intFrequencySamples - 1; indexFrequency >= 0; indexFrequency--) {   // Lower frequencies are assigned first
+    	int intMargin = (int) (dblMaximumFrequency / dblFrequencySamples);   // Margin to take an inferior and superior sample
+    	
+    	for (int indexFrequency = 0; indexFrequency < intFrequencySamples; indexFrequency++) {
     		double dblFrequency = dblMaximumFrequency - (dblMaximumFrequency / dblFrequencySamples * indexFrequency);
     		
-    		lstPowerSpectrumValues.add(new PowerSpectrumValues((int) dblFrequency, -1000));
+    		if ((dblFrequency >= intInitialFrequency - intMargin) && (dblFrequency <= intFinalFrequency + intMargin)) {
+    			lstCoefficients.add((int) dblFrequency);
+    		}
         }
     	
+    	Collections.sort(lstCoefficients); // Sort the coefficients from lowest to highest frequencies
+    	
+    	ps = new double[2][lstCoefficients.size()];
+    	
+    	for (int indexCoefficient = 0; indexCoefficient < lstCoefficients.size(); indexCoefficient++) {
+    		ps[0][indexCoefficient] = lstCoefficients.get(indexCoefficient);
+    		ps[1][indexCoefficient] = -1000;   // Initiate the coefficients with a very low decibel value
+    	}
+    }
+    
+    /**
+     * Take samples from an audio signal and computes the Power Spectrum (PS).<br>
+     * <br>
+     * It starts processing the samples by performing framing.
+     * 
+     * @param audioSignal
+     */
+    @Override
+	public void process(double[] audioSignal) {
     	// Step 1 - Frame Blocking
-        double[][] frames = Preprocessing.framing(samples, FRAME_LENGTH, OVERLAP_SAMPLES);
+        double[][] frames = Preprocessing.framing(audioSignal, FRAME_LENGTH, OVERLAP_SAMPLES);
         
+        processFrames(frames);
+	}
+	
+    /**
+     * Computes the Power Spectrum (PS) from audio frames.<br>
+     * <br>
+     * It assumes that framing has already been performed.
+     * 
+     * @param frames
+     */
+    @Override
+    public void processFrames(double[][] frames) {
         // Step 2 - Windowing - Apply Hamming Window to all frames
         objFFT = new FFT(FRAME_LENGTH, WINDOW_FUNCTION);
         
@@ -77,9 +117,6 @@ public class PowerSpectrum {
         
         // Below computations are all based on individual frames
         double[] amplitudes;
-        double dblDecibel;
-        double dblFrequency;
-        int intFrequency;
         
         for (int indexFrame = 0; indexFrame < frames.length; indexFrame++) {
         	// Step 3 - FFT
@@ -90,17 +127,17 @@ public class PowerSpectrum {
         	int intLastPowerSpectrumValueIndex = 0;
         	
         	for (int indexFrequency = 0; indexFrequency < intFrequencySamples; indexFrequency++) {
-        		dblDecibel = RoundNumbers.round(amplitudes[indexFrequency]);
-        		
-	        	dblFrequency = dblMaximumFrequency / dblFrequencySamples * indexFrequency;
+	        	double dblFrequency = dblMaximumFrequency / dblFrequencySamples * indexFrequency;
 	    		dblFrequency += dblMaximumFrequency / dblFrequencySamples;
 	    		
-	    		intFrequency = (int) dblFrequency;
-        		
-        		for (int indexPowerSpectrumValue = intLastPowerSpectrumValueIndex; indexPowerSpectrumValue < lstPowerSpectrumValues.size(); indexPowerSpectrumValue++) {
-        			if (intFrequency == lstPowerSpectrumValues.get(indexPowerSpectrumValue).getFrequency()) {
-        				if (dblDecibel > lstPowerSpectrumValues.get(indexPowerSpectrumValue).getDecibel()) {
-        					lstPowerSpectrumValues.get(indexPowerSpectrumValue).setDecibel(dblDecibel);
+	    		int intFrequency = (int) dblFrequency;
+	    		
+        		for (int indexPowerSpectrumValue = intLastPowerSpectrumValueIndex; indexPowerSpectrumValue < ps[0].length; indexPowerSpectrumValue++) {
+        			if (intFrequency == ps[0][indexPowerSpectrumValue]) {
+        				double dblDecibel = amplitudes[indexFrequency];
+        				
+        				if (dblDecibel > ps[1][indexPowerSpectrumValue]) {
+        					ps[1][indexPowerSpectrumValue] = RoundNumbers.round(dblDecibel, 4);
         					
         					intLastPowerSpectrumValueIndex = indexPowerSpectrumValue;
         					
@@ -114,42 +151,32 @@ public class PowerSpectrum {
         // dBFS should accept only negative values
         // In case of positive, all the values are adjusted from the difference of the higher value
         double dblHigherValue = -1000;
-
-        for (int indexPowerSpectrumValue = 0; indexPowerSpectrumValue < lstPowerSpectrumValues.size(); indexPowerSpectrumValue++) {
-        	if (lstPowerSpectrumValues.get(indexPowerSpectrumValue).getDecibel() > dblHigherValue) {
-        		dblHigherValue = lstPowerSpectrumValues.get(indexPowerSpectrumValue).getDecibel();
+        
+        for (int indexPowerSpectrumValue = 0; indexPowerSpectrumValue < ps[0].length; indexPowerSpectrumValue++) {
+        	if (ps[1][indexPowerSpectrumValue] > dblHigherValue) {
+        		dblHigherValue = ps[1][indexPowerSpectrumValue];
         	}
         }
         
         if (dblHigherValue >= 0) {
-        	for (int indexPowerSpectrumValue = 0; indexPowerSpectrumValue < lstPowerSpectrumValues.size(); indexPowerSpectrumValue++) {
-        		lstPowerSpectrumValues.get(indexPowerSpectrumValue).setDecibel(RoundNumbers.round(lstPowerSpectrumValues.get(indexPowerSpectrumValue).getDecibel() - dblHigherValue));
+        	for (int indexPowerSpectrumValue = 0; indexPowerSpectrumValue < ps[0].length; indexPowerSpectrumValue++) {
+        		ps[1][indexPowerSpectrumValue] = RoundNumbers.round((ps[1][indexPowerSpectrumValue] - dblHigherValue), 4);
         	}
         }
     }
     
-    /**
-     * Filter Power Spectrum values from a frequency range.
-     * 
-     * @param intInitialFrequency
-     * @param intFinalFrequency
-     * 
-     * @return lstPowerSpectrumFilteredValues
-     */
-    public List<PowerSpectrumValues> filterFrequencies(int intInitialFrequency, int intFinalFrequency) {
-    	List<PowerSpectrumValues> lstPowerSpectrumFilteredValues = lstPowerSpectrumValues;
-    	
-    	// Delete values that do not belong within the initial and final frequencies (delete from the end to the beginning)
-        int intMargin = (int) (dblMaximumFrequency / dblFrequencySamples); // Margin to take an inferior and superior sample
-        
-        for (int indexPowerSpectrumFilteredValue = lstPowerSpectrumFilteredValues.size() - 1; indexPowerSpectrumFilteredValue >= 0; indexPowerSpectrumFilteredValue--) {
-        	if (lstPowerSpectrumFilteredValues.get(indexPowerSpectrumFilteredValue).getFrequency() > intFinalFrequency + intMargin) {
-        		lstPowerSpectrumFilteredValues.remove(indexPowerSpectrumFilteredValue);
-        	} else if (lstPowerSpectrumFilteredValues.get(indexPowerSpectrumFilteredValue).getFrequency() < intInitialFrequency - intMargin) {
-        		lstPowerSpectrumFilteredValues.remove(indexPowerSpectrumFilteredValue);
-        	}
-        }
-    	
-    	return lstPowerSpectrumFilteredValues;
+    @Override
+    public double[][] getFeature() {
+    	return ps;
     }
+    
+    @Override
+	public double[] getMean() {
+		return null;
+	}
+	
+    @Override
+	public double[] getStandardDeviation() {
+		return null;
+	}
 }

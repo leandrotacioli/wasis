@@ -20,7 +20,7 @@ public class PowerSpectrumValues {
 	}
 	
 	/**
-	 * Return the dBFS (Decibels relative to full scale) Value.
+	 * Return the dBFS (Decibels relative to full scale) value.
 	 * 
 	 * @return dblValue
 	 */

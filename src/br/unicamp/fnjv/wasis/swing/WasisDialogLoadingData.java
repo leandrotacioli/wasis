@@ -20,7 +20,7 @@ import java.awt.Font;
  * exibição de uma tela como forma de espera de algum processo.
  * 
  * @author Leandro Tacioli
- * @version 3.0 - 03/Set/2015
+ * @version 3.1 - 31/Mar/2018
  */
 public class WasisDialogLoadingData extends JDialog {
 	private static final long serialVersionUID = -3165561128389957672L;
@@ -49,7 +49,7 @@ public class WasisDialogLoadingData extends JDialog {
 		setIconImage(WasisParameters.getInstance().getWasisIcon());
 		setModalityType(ModalityType.APPLICATION_MODAL);
 		setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
-		setBounds(275, 275, 275, 105);
+		setBounds(325, 325, 325, 105);
 		setResizable(false);
 		setLocationRelativeTo(WasisParameters.getInstance().getWasisFrame());
 		

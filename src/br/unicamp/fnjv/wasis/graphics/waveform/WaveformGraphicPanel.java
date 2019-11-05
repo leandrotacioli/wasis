@@ -15,18 +15,17 @@ import java.awt.geom.Rectangle2D;
 import javax.swing.SwingUtilities;
 
 import br.unicamp.fnjv.wasis.graphics.GraphicPanel;
+import br.unicamp.fnjv.wasis.swing.WasisPanel;
 
 /**
  * Painel responsável pela exibição do waveform.
  * 
  * @author Leandro Tacioli
- * @version 3.0 - 01/Jul/2016
+ * @version 4.0 - 18/Out/2017
  */
 public class WaveformGraphicPanel extends GraphicPanel implements MouseListener, MouseMotionListener {
 	private static final long serialVersionUID = -3552488562361108767L;
-
-	private Waveform objWaveform;
-
+	
     /**
      * Status da visualização do waveform.<br>
      * <br> 
@@ -36,32 +35,25 @@ public class WaveformGraphicPanel extends GraphicPanel implements MouseListener,
      */
     private boolean blnViewFullWaveform;
     
-    /**
-     * Trecho do áudio selecionado manualmente pelo usuário (válido apenas quando 'blnViewFullWaveform' = true).
-     */
+    /** Trecho do áudio selecionado manualmente pelo usuário (válido apenas quando 'blnViewFullWaveform' = true). */
     private boolean blnManualSelection;
     
-    /**
-	 * Ponto âncora quando há uma seleção.
-	 */
+    /** Ponto âncora quando há uma seleção. */
 	private Point pointAnchor;
 	
 	/**
 	 * Painel responsável pela exibição do waveform.
 	 * 
+	 * @param panelMain   - Painel do frame principal
 	 * @param objWaveform - Waveform
 	 */
-	public WaveformGraphicPanel(Waveform objWaveform) {
-		super(objWaveform);
+	public WaveformGraphicPanel(WasisPanel panelMain, Waveform objWaveform) {
+		super(panelMain, objWaveform);
 		
-		this.objWaveform = objWaveform;
-
 		this.setOpaque(false);
 		
 		this.addMouseListener(this);
 		this.addMouseMotionListener(this);
-		
-		super.setDrawSelectionLine(true);
 	}
 	
 	//*************************************************************************
@@ -69,11 +61,11 @@ public class WaveformGraphicPanel extends GraphicPanel implements MouseListener,
 	public void paintComponent(Graphics g) {
 		super.paintComponent(g);
 		
-		if (!objWaveform.getIsRenderingWaveform()) {
+		if (!super.getWaveform().getIsRenderingWaveform()) {
 			Graphics2D graphic2D = (Graphics2D) g;
 			
-			super.setInitialTime(objWaveform.getInitialTime());
-			super.setFinalTime(objWaveform.getFinalTime());
+			super.setInitialTime(super.getWaveform().getInitialTime());
+			super.setFinalTime(super.getWaveform().getFinalTime());
 			
 			// Determina a área que o waveform pode ser desenhado
 			int intTotalWidth = (int) graphic2D.getClip().getBounds().getMaxX();
@@ -85,18 +77,16 @@ public class WaveformGraphicPanel extends GraphicPanel implements MouseListener,
 			// Verifica o tamanho do painel.
 			// Caso houver alteração no tamanho, é realizada novamente a renderização do waveform.
 			if (super.getPanelWidth() != super.getPanelWidthTemporary() || super.getPanelHeight() != super.getPanelHeightTemporary()) {
-				objWaveform.setPanelWidth(super.getPanelWidth());
-				objWaveform.setPanelHeight(super.getPanelHeight());
+				super.getWaveform().setPanelWidth(super.getPanelWidth());
+				super.getWaveform().setPanelHeight(super.getPanelHeight());
 				
-				if (super.getPanelWidthTemporary() != 0 && super.getPanelHeightTemporary() != 0) {
-					objWaveform.scaleFinalImage(objWaveform.getWaveformImage(), super.getPanelWidth(), super.getPanelHeight());
-				}
+				super.getWaveform().scaleFinalImage();
 				
 				super.setPanelWidthTemporary(super.getPanelWidth());
 				super.setPanelHeightTemporary(super.getPanelHeight());
 			}
 			
-			graphic2D.drawImage(objWaveform.getWaveformImageFinal(), AXES_SIZE, 0, null);
+			graphic2D.drawImage(super.getWaveform().getWaveformImageFinal(), AXES_SIZE, 0, null);
 
 			// ******************************************************************************************************
 			// Linha de seleção
@@ -108,15 +98,15 @@ public class WaveformGraphicPanel extends GraphicPanel implements MouseListener,
 			
 			// ******************************************************************************************************
 			// Caixa de seleção
-			if (super.getDrawSelectionBox()) {
+			if (super.getDrawAudioSegment()) {
 				if (blnViewFullWaveform && !blnManualSelection) {
-					super.setInitialTimeSelectionBox(objWaveform.getInitialTimeSpectrogram());
-					super.setFinalTimeSelectionBox(objWaveform.getFinalTimeSpectrogram());
+					super.setInitialTimeAudioSegment(super.getWaveform().getInitialTimeSpectrogram());
+					super.setFinalTimeAudioSegment(super.getWaveform().getFinalTimeSpectrogram());
 				}
 
 		        // Tempo
-				int intX_Initial = AXES_SIZE + (int) ((super.getInitialTimeSelectionBox() / super.getTimePerPixel()) - (super.getInitialTime() / super.getTimePerPixel()));
-				int intX_Final = AXES_SIZE + (int) ((super.getFinalTimeSelectionBox() / super.getTimePerPixel()) - (super.getInitialTime() / super.getTimePerPixel()));
+				int intX_Initial = AXES_SIZE + (int) ((super.getInitialTimeAudioSegment() / super.getTimePerPixel()) - (super.getInitialTime() / super.getTimePerPixel()));
+				int intX_Final = AXES_SIZE + (int) ((super.getFinalTimeAudioSegment() / super.getTimePerPixel()) - (super.getInitialTime() / super.getTimePerPixel()));
 				int intWidth = intX_Final - intX_Initial;
 				
 				// Ajusta a posição do tempo, para não mostrar a seleção fora dos limites do waveform
@@ -132,16 +122,16 @@ public class WaveformGraphicPanel extends GraphicPanel implements MouseListener,
 	        	if (blnViewFullWaveform) {
 	    			graphic2D.setColor(Color.GREEN);
 	        	} else {
-					graphic2D.setColor(super.COLOR_SELECTION_BOX);
+					graphic2D.setColor(Color.RED);
 	        	}
 	        	
-	        	graphic2D.setComposite(super.COMPOSITE_SELECTION_BOX);
+	        	graphic2D.setComposite(super.COMPOSITE_AUDIO_SEGMENT);
 	        	graphic2D.fillRect(intX_Initial, intY_Initial, intWidth, intHeight);
 	        	
 	        	// Desenha uma linha pontilhada ao redor da caixa de seleção
-	        	graphic2D.setComposite(super.COMPOSITE_SELECTION_BOX_BORDER);
-		        graphic2D.setStroke(super.STROKE_SELECTION_BOX_BORDER);
-		        graphic2D.draw(new Rectangle2D.Double(intX_Initial + 1, intY_Initial + 1, intWidth - 2, intHeight - 2));
+	        	graphic2D.setComposite(super.COMPOSITE_AUDIO_SEGMENT_BORDER);
+		        graphic2D.setStroke(super.STROKE_AUDIO_SEGMENT_BORDER);
+		        graphic2D.draw(new Rectangle2D.Double(intX_Initial, intY_Initial, intWidth - 1, intHeight - 1));
 			}
 			
 			// ******************************************************************************************************
@@ -167,8 +157,8 @@ public class WaveformGraphicPanel extends GraphicPanel implements MouseListener,
 		this.blnViewFullWaveform = blnViewFullWaveform;
 		
 		if (blnViewFullWaveform) {
-			super.setInitialTimeSelectionBox(objWaveform.getInitialTimeSpectrogram());
-			super.setFinalTimeSelectionBox(objWaveform.getFinalTimeSpectrogram());
+			super.setInitialTimeAudioSegment(super.getWaveform().getInitialTimeSpectrogram());
+			super.setFinalTimeAudioSegment(super.getWaveform().getFinalTimeSpectrogram());
 		}
 	}
     
@@ -232,16 +222,16 @@ public class WaveformGraphicPanel extends GraphicPanel implements MouseListener,
 			
 			// Visualização completa do waveform (todo o áudio)
 			if (blnViewFullWaveform) {
-				if (intCurrentTime < super.getInitialTimeSelectionBox()) {
-					intCurrentTime = super.getInitialTimeSelectionBox();
-				} else if (intCurrentTime > super.getFinalTimeSelectionBox()) {
-					intCurrentTime = super.getInitialTimeSelectionBox();
+				if (intCurrentTime < super.getInitialTimeAudioSegment()) {
+					intCurrentTime = super.getInitialTimeAudioSegment();
+				} else if (intCurrentTime > super.getFinalTimeAudioSegment()) {
+					intCurrentTime = super.getInitialTimeAudioSegment();
 				}
 				
 			// Visualização parcial do waveform baseando-se no tempo inicial e final que está sendo exibido o espectrograma
 			} else {
 				super.setDrawSelectionLine(true);
-				super.setDrawSelectionBox(false);
+				super.setDrawAudioSegment(false);
 			}
 			
 			super.updateWaveformSelectedAudio(intCurrentTime, intCurrentTime, intCurrentTime);
@@ -275,10 +265,10 @@ public class WaveformGraphicPanel extends GraphicPanel implements MouseListener,
 				// Não houve uma mudança do ponto âncora com o ponto de liberação do botão do mouse
 				// Fica caracterizado que o mouse foi apenas clicado
 				if (intAnchorTime == intCurrentTime) {
-					if (intCurrentTime < super.getInitialTimeSelectionBox()) {
-						intCurrentTime = super.getInitialTimeSelectionBox();
-					} else if (intCurrentTime > super.getFinalTimeSelectionBox()) {
-						intCurrentTime = super.getInitialTimeSelectionBox();
+					if (intCurrentTime < super.getInitialTimeAudioSegment()) {
+						intCurrentTime = super.getInitialTimeAudioSegment();
+					} else if (intCurrentTime > super.getFinalTimeAudioSegment()) {
+						intCurrentTime = super.getInitialTimeAudioSegment();
 					}
 					
 					super.updateWaveformSelectedAudio(intCurrentTime, intCurrentTime, intCurrentTime);
@@ -316,20 +306,20 @@ public class WaveformGraphicPanel extends GraphicPanel implements MouseListener,
 				if (pointAnchor.x < AXES_SIZE) {
 					// Ponto de seleção atual está dentro do painel
 					if (intCurrentPosition >= 0) {
-						super.setInitialTimeSelectionBox(super.getInitialTime());
-						super.setFinalTimeSelectionBox(intCurrentTime);
+						super.setInitialTimeAudioSegment(super.getInitialTime());
+						super.setFinalTimeAudioSegment(intCurrentTime);
 
 					// Ponto de seleção atual continua fora do painel
 					} else {
 						// Visualização completa do waveform (todo o áudio)
 						if (blnViewFullWaveform) {
-							super.setInitialTimeSelectionBox(objWaveform.getInitialTimeSpectrogram());
-							super.setFinalTimeSelectionBox(objWaveform.getFinalTimeSpectrogram());
+							super.setInitialTimeAudioSegment(super.getWaveform().getInitialTimeSpectrogram());
+							super.setFinalTimeAudioSegment(super.getWaveform().getFinalTimeSpectrogram());
 						
 						// Visualização parcial do waveform baseando-se no tempo inicial e final que está sendo exibido o espectrograma
 						} else {
-							super.setInitialTimeSelectionBox(0);
-							super.setFinalTimeSelectionBox(0);
+							super.setInitialTimeAudioSegment(0);
+							super.setFinalTimeAudioSegment(0);
 						}
 					}
 	
@@ -341,47 +331,47 @@ public class WaveformGraphicPanel extends GraphicPanel implements MouseListener,
 					// **************************************************************************************
 					// Ponto de seleção inicial é menor que o ponto de seleção atual
 					if (intAnchorPosition < intCurrentPosition) {
-						super.setInitialTimeSelectionBox((int) (super.getInitialTime() + (super.getTimePerPixel() * (intInitialPosition - AXES_SIZE))));
-						super.setFinalTimeSelectionBox((int) (super.getInitialTime() + (super.getTimePerPixel() * intCurrentPosition)));
+						super.setInitialTimeAudioSegment((int) (super.getInitialTime() + (super.getTimePerPixel() * (intInitialPosition - AXES_SIZE))));
+						super.setFinalTimeAudioSegment((int) (super.getInitialTime() + (super.getTimePerPixel() * intCurrentPosition)));
 						
 					// Ponto de seleção inicial é maior que o ponto de seleção atual
 					} else if (intAnchorPosition > intCurrentPosition) {
-						super.setInitialTimeSelectionBox((int) (super.getInitialTime() + (super.getTimePerPixel() * intCurrentPosition)));
-						super.setFinalTimeSelectionBox((int) (super.getInitialTime() + (super.getTimePerPixel() * intAnchorPosition)));
+						super.setInitialTimeAudioSegment((int) (super.getInitialTime() + (super.getTimePerPixel() * intCurrentPosition)));
+						super.setFinalTimeAudioSegment((int) (super.getInitialTime() + (super.getTimePerPixel() * intAnchorPosition)));
 					
 					// Ponto de seleção inicial é igual ao ponto de seleção atual
 					} else if (intAnchorPosition == intCurrentPosition) {
-						super.setInitialTimeSelectionBox((int) (super.getInitialTime() + (super.getTimePerPixel() * intAnchorPosition)));
-						super.setFinalTimeSelectionBox((int) (super.getInitialTime() + (super.getTimePerPixel() * intAnchorPosition)));
+						super.setInitialTimeAudioSegment((int) (super.getInitialTime() + (super.getTimePerPixel() * intAnchorPosition)));
+						super.setFinalTimeAudioSegment((int) (super.getInitialTime() + (super.getTimePerPixel() * intAnchorPosition)));
 					}
 					
 					// **************************************************************************************
 					// Caso a seleção tenha saído pela esquerda no painel
 					if (intInitialPosition < AXES_SIZE) {
-						super.setInitialTimeSelectionBox(super.getInitialTime());
-						super.setFinalTimeSelectionBox((int) (super.getInitialTime() + (super.getTimePerPixel() * intAnchorPosition)));
+						super.setInitialTimeAudioSegment(super.getInitialTime());
+						super.setFinalTimeAudioSegment((int) (super.getInitialTime() + (super.getTimePerPixel() * intAnchorPosition)));
 					}
 					
 					// **************************************************************************************
 					// Caso a seleção tenha saído pela direita no painel
 					if (event.getX() > super.getPanelWidth() + AXES_SIZE) {
-						super.setInitialTimeSelectionBox((int) (super.getInitialTime() + (super.getTimePerPixel() * (intInitialPosition - AXES_SIZE))));
-						super.setFinalTimeSelectionBox((int) (super.getInitialTime() + (super.getTimePerPixel() * super.getPanelWidth())));
+						super.setInitialTimeAudioSegment((int) (super.getInitialTime() + (super.getTimePerPixel() * (intInitialPosition - AXES_SIZE))));
+						super.setFinalTimeAudioSegment((int) (super.getInitialTime() + (super.getTimePerPixel() * super.getPanelWidth())));
 					}
 				}
 				
 				// Caso o tempo inicial for igual ao tempo final e a visualização não for completa, é considerada uma linha de simples
-				if (super.getInitialTimeSelectionBox() == super.getFinalTimeSelectionBox() && !blnViewFullWaveform) {
+				if (super.getInitialTimeAudioSegment() == super.getFinalTimeAudioSegment() && !blnViewFullWaveform) {
 					super.setDrawSelectionLine(true);
-					super.setDrawSelectionBox(false);
+					super.setDrawAudioSegment(false);
 					
 				// Senão é considerada uma caixa de seleção
 				} else {
 					super.setDrawSelectionLine(false);
-					super.setDrawSelectionBox(true);
+					super.setDrawAudioSegment(true);
 				}
 				
-				super.updateWaveformSelectedAudio(intCurrentTime, super.getInitialTimeSelectionBox(), super.getFinalTimeSelectionBox());
+				super.updateWaveformSelectedAudio(intCurrentTime, super.getInitialTimeAudioSegment(), super.getFinalTimeAudioSegment());
 				super.updateWaveformMousePosition(intCurrentTime);
 				
 			} catch (InterruptedException e) {

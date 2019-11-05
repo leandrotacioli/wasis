@@ -4,7 +4,7 @@ package br.unicamp.fnjv.wasis.dsp;
  * Parâmetros do FFT.
  * 
  * @author Leandro Tacioli
- * @version 2.0 - 02/Mar/2015
+ * @version 3.0 - 20/Set/2017
  */
 public class FFTParameters {
 	private static FFTParameters objFFTParameters;
@@ -45,25 +45,7 @@ public class FFTParameters {
 		
 		return dblMillisecondsPerPixel;
 	}
-	
-	/**
-	 * Número de amostras da FFT que será utilizada para
-	 * análise de comparação de dados e inclusão no banco de dados.
-	 */
-	public static final int FFT_SAMPLE_SIZE_COMPARISON = 1024;
-	
-	/**
-	 * Fator de sobreposição (OVERLAP) que será utilizado para
-	 * análise de comparação de dados e inclusão no banco de dados.
-	 */
-	public static final int FFT_OVERLAP_FACTOR_COMPARISON = 50;
-	
-	/**
-	 * Função de janelamento (HANNING) que será utilizada para
-	 * análise de comparação de dados e inclusão no banco de dados.
-	 */
-	public static final String FFT_WINDOW_FUNCTION_COMPARISON = "HANNING"; 
-	
+
 	/**
 	 * Retorna o número de amostras da FFT (Potência de 2). 
 	 * 

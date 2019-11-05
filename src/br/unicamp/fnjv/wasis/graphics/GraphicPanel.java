@@ -19,19 +19,23 @@ import br.unicamp.fnjv.wasis.graphics.waveform.Waveform;
 import br.unicamp.fnjv.wasis.graphics.waveform.WaveformListener;
 import br.unicamp.fnjv.wasis.player.Player;
 import br.unicamp.fnjv.wasis.player.PlayerListener;
+import br.unicamp.fnjv.wasis.swing.WasisPanel;
 
 /**
  * Cria um painel que renderiza o espectrograma/waveform.
  * 
  * @author Leandro Tacioli
- * @version 2.0 - 10/Mar/2015
+ * @version 4.0 - 18/Out/2017
  */
 public class GraphicPanel extends JPanel implements PlayerListener {
 	private static final long serialVersionUID = -568284228421520526L;
 	
-	private Player objPlayer;
+	private WasisPanel panelMain;
+	
 	private Waveform objWaveform;
 	private Spectrogram objSpectrogram;
+	
+	private Player objPlayer;
 	
 	private Collection<Object> collectionListenerWaveform;
     private Collection<Object> collectionListenerSpectrogram; 
@@ -45,8 +49,8 @@ public class GraphicPanel extends JPanel implements PlayerListener {
     private int intInitialTime;                  // Tempo inicial do áudio que está sendo mostrado na tela
     private int intFinalTime;                    // Tempo final do áudio que está sendo mostrado na tela
     
-    private int intInitialTimeSelectionBox;      // Tempo inicial quando houver caixa de seleção
-    private int intFinalTimeSelectionBox;        // Tempo final quando houver caixa de seleção
+    private int intInitialTimeAudioSegment;      // Tempo inicial quando houver caixa de seleção
+    private int intFinalTimeAudioSegment;        // Tempo final quando houver caixa de seleção
     
     private double dblTimePerPixel;              // Tempo que deverá ser atribuído para cada pixel da imagem.
 
@@ -55,7 +59,7 @@ public class GraphicPanel extends JPanel implements PlayerListener {
 	
 	private boolean blnDrawPlayerLine;           // Status para o desenho da linha do player
 	private boolean blnDrawSelectionLine;        // Status para o desenho da linha de seleção
-	private boolean blnDrawSelectionBox;         // Status para o desenho da caixa de seleção
+	private boolean blnDrawAudioSegment;         // Status para o desenho do segmento de áudio
 	
 	private boolean blnChangeTimeSelectionLine;  // Status para mudança do tempo da linha de seleção
 
@@ -76,14 +80,23 @@ public class GraphicPanel extends JPanel implements PlayerListener {
 	 */
 	protected final Color COLOR_SELECTION_LINE = new Color(50, 50, 250);
 	
-	/**
-	 * Cor da caixa de seleção.
-	 */
-	protected final Color COLOR_SELECTION_BOX = Color.RED;
+	protected final Composite COMPOSITE_AUDIO_SEGMENT = AlphaComposite.SrcOver.derive(0.35f);
+	protected final Composite COMPOSITE_AUDIO_SEGMENT_BORDER = AlphaComposite.SrcOver.derive(0.80f);
 	
-	protected final Composite COMPOSITE_SELECTION_BOX = AlphaComposite.SrcOver.derive(0.20f);
-	protected final Composite COMPOSITE_SELECTION_BOX_BORDER = AlphaComposite.SrcOver.derive(0.40f);
-	protected final Stroke STROKE_SELECTION_BOX_BORDER = new BasicStroke(2.0f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND, 0.0f, new float[] {10.0f}, 0.0f);
+	protected final Stroke STROKE_AUDIO_SEGMENT_BORDER = new BasicStroke(1.0f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND, 0.0f, new float[] {3.0f}, 0.0f);
+	
+	/**
+	 * Retorna o objeto do waveform.
+	 * 
+	 * @return objWaveform
+	 */
+	public Waveform getWaveform() {
+		if (objWaveform != null) {
+			return objWaveform;
+		} else {
+			return null;
+		}
+	}
 	
 	/**
 	 * Retorna o objeto do espectrograma.
@@ -104,18 +117,11 @@ public class GraphicPanel extends JPanel implements PlayerListener {
      * @return intPanelWidth
      */
 	public int getPanelWidth() {
+		intPanelWidth = panelMain.getWidth() - panelMain.getSizeBorders() - AXES_SIZE;
+		
+		setTimePerPixel();
+		
 		return intPanelWidth;
-	}
-	
-	/**
-	 * Altera o comprimento do painel onde o waveform/espectrograma será desenhado.<br>
-	 * <br>
-	 * O comprimento final do painel subtrai o tamanho do eixo.
-	 * 
-	 * @param intPainelWidth
-	 */
-	public void setPanelWidth(int intPanelWidth) {
-		this.intPanelWidth = intPanelWidth - AXES_SIZE;
 	}
 	
 	/**
@@ -124,22 +130,13 @@ public class GraphicPanel extends JPanel implements PlayerListener {
 	 * @return intPanelHeight
 	 */
 	public int getPanelHeight() {
-		return intPanelHeight;
-	}
-	
-	/**
-	 * Altera a altura do painel onde o waveform/espectrograma será desenhado.<br>
-	 * <br>
-	 * A altura final do painel subtrai o tamanho do eixo (apenas para o espectrograma).
-	 * 
-	 * @param intPanelHeight
-	 */
-	public void setPanelHeight(int intPanelHeight) {
-		this.intPanelHeight = intPanelHeight;
-		
-		if (this.objSpectrogram != null) {
-			this.intPanelHeight = intPanelHeight - AXES_SIZE;
+		if (objSpectrogram != null) {
+			intPanelHeight = panelMain.getHeight() - panelMain.getSizeBorders() - AXES_SIZE;
+		} else if (objWaveform != null) {
+			intPanelHeight = panelMain.getHeight() - panelMain.getSizeBorders();
 		}
+
+		return intPanelHeight;
 	}
 	
 	/**
@@ -194,7 +191,8 @@ public class GraphicPanel extends JPanel implements PlayerListener {
 	 */
 	protected void setInitialTime(int intInitialTime) {
 		this.intInitialTime = intInitialTime;
-		this.dblTimePerPixel = (double) (this.intFinalTime - this.intInitialTime) / this.intPanelWidth;
+		
+		setTimePerPixel();
 	}
 	
 	/**
@@ -213,43 +211,44 @@ public class GraphicPanel extends JPanel implements PlayerListener {
 	 */
 	protected void setFinalTime(int intFinalTime) {
 		this.intFinalTime = intFinalTime;
-		this.dblTimePerPixel = (double) (this.intFinalTime - this.intInitialTime) / this.intPanelWidth;
+		
+		setTimePerPixel();
 	}
 	
 	/**
-     * Retorna o tempo inicial quando houver caixa de seleção.
+     * Retorna o tempo inicial quando houver seleção de um segmento de áudio.
      * 
-     * @return intInitialTimeSelectionBox
+     * @return intInitialTimeAudioSegment
      */
-	protected int getInitialTimeSelectionBox() {
-		return intInitialTimeSelectionBox;
+	protected int getInitialTimeAudioSegment() {
+		return intInitialTimeAudioSegment;
 	}
 	
 	/**
-	 * Altera o tempo inicial quando houver caixa de seleção.
+	 * Altera o tempo inicial quando houver seleção de um segmento de áudio.
 	 * 
-	 * @param intInitialTimeSelectionBox
+	 * @param intInitialTimeAudioSegment
 	 */
-	protected void setInitialTimeSelectionBox(int intInitialTimeSelectionBox) {
-		this.intInitialTimeSelectionBox = intInitialTimeSelectionBox;
+	protected void setInitialTimeAudioSegment(int intInitialTimeAudioSegment) {
+		this.intInitialTimeAudioSegment = intInitialTimeAudioSegment;
 	}
 	
 	/**
-     * Retorna o tempo inicial quando houver caixa de seleção.
+     * Retorna o tempo inicial quando houver seleção de um segmento de áudio.
      * 
-     * @return intFinalTimeSelectionBox
+     * @return intFinalTimeAudioSegment
      */
-	protected int getFinalTimeSelectionBox() {
-		return intFinalTimeSelectionBox;
+	protected int getFinalTimeAudioSegment() {
+		return intFinalTimeAudioSegment;
 	}
 	
 	/**
-	 * Altera o tempo inicial quando houver caixa de seleção.
+	 * Altera o tempo inicial quando houver seleção de um segmento de áudio.
 	 * 
-	 * @param intFinalTimeSelectionBox
+	 * @param intFinalTimeAudioSegment
 	 */
-	protected void setFinalTimeSelectionBox(int intFinalTimeSelectionBox) {
-		this.intFinalTimeSelectionBox = intFinalTimeSelectionBox;
+	protected void setFinalTimeAudioSegment(int intFinalTimeAudioSegment) {
+		this.intFinalTimeAudioSegment = intFinalTimeAudioSegment;
 	}
 	
 	/**
@@ -259,6 +258,13 @@ public class GraphicPanel extends JPanel implements PlayerListener {
      */
 	protected double getTimePerPixel() {
 		return dblTimePerPixel;
+	}
+	
+	/**
+	 * Altera o tempo que deverá ser atribuído para cada pixel da imagem.
+	 */
+	private void setTimePerPixel() {
+		this.dblTimePerPixel = (double) (this.intFinalTime - this.intInitialTime) / this.intPanelWidth;
 	}
 	
 	/**
@@ -298,21 +304,21 @@ public class GraphicPanel extends JPanel implements PlayerListener {
 	}
 	
 	/**
-     * Retorna o status para o desenho da caixa de seleção.
+     * Retorna o status para desenhar o segmento de áudio.
      * 
-     * @return blnDrawSelectionBox
+     * @return blnDrawAudioSegment
      */
-	public boolean getDrawSelectionBox() {
-		return blnDrawSelectionBox;
+	public boolean getDrawAudioSegment() {
+		return blnDrawAudioSegment;
 	}
 	
 	/**
-	 * Altera o status para o desenho da caixa de seleção.
+	 * Altera o status para desenhar o segmento de áudio.
 	 * 
-	 * @param blnDrawSelectionBox
+	 * @param blnDrawAudioSegment
 	 */
-	protected void setDrawSelectionBox(boolean blnDrawSelectionBox) {
-		this.blnDrawSelectionBox = blnDrawSelectionBox;
+	protected void setDrawAudioSegment(boolean blnDrawAudioSegment) {
+		this.blnDrawAudioSegment = blnDrawAudioSegment;
 	}
 	
 	/**
@@ -360,22 +366,34 @@ public class GraphicPanel extends JPanel implements PlayerListener {
 	/**
      * Cria um JPanel que renderiza o waveform.
      * 
+     * @param panelMain   - Painel do frame principal
      * @param objWaveform - Objeto do Waveform
      */
-	public GraphicPanel(Waveform objWaveform) {
+	public GraphicPanel(WasisPanel panelMain, Waveform objWaveform) {
+		this.panelMain = panelMain;
 		this.objWaveform = objWaveform;
-
+		
+		this.objWaveform.setPanelWidth(getPanelWidth());
+		this.objWaveform.setPanelHeight(getPanelHeight());
+		
+		this.blnDrawSelectionLine = true;
 		this.collectionListenerWaveform = new ArrayList<Object>();
 	}
 	
     /**
      * Cria um JPanel que renderiza o espectrograma.
      * 
+     * @param panelMain      - Painel do frame principal
      * @param objSpectrogram - Objeto do Espectrograma
      */
-	public GraphicPanel(Spectrogram objSpectrogram) {
+	public GraphicPanel(WasisPanel panelMain, Spectrogram objSpectrogram) {
+		this.panelMain = panelMain;
 		this.objSpectrogram = objSpectrogram;
-
+		
+		this.objSpectrogram.setPanelWidth(getPanelWidth());
+		this.objSpectrogram.setPanelHeight(getPanelHeight());
+		
+		this.blnDrawSelectionLine = true;
 		this.collectionListenerSpectrogram = new ArrayList<Object>();
 	}
 
@@ -397,18 +415,18 @@ public class GraphicPanel extends JPanel implements PlayerListener {
 	}
 	
 	/**
-	 * Altera os valores da caixa de seleção.
+	 * Altera os valores da seleção do segmento de áudio.
 	 * 
-	 * @param blnDrawSelectionBox
+	 * @param blnDrawAudioSegment
 	 * @param intInitialTimeSelection
 	 * @param intFinalTimeSelection
 	 */
-	public void setSelectionBox(boolean blnDrawSelectionBox, int intInitialTimeSelection, int intFinalTimeSelection) {
-		this.blnDrawSelectionBox = blnDrawSelectionBox;
+	public void setAudioSegment(boolean blnDrawAudioSegment, int intInitialTimeSelection, int intFinalTimeSelection) {
+		this.blnDrawAudioSegment = blnDrawAudioSegment;
 		
-		if (blnDrawSelectionBox) {
-			this.intInitialTimeSelectionBox = intInitialTimeSelection;
-			this.intFinalTimeSelectionBox = intFinalTimeSelection;
+		if (blnDrawAudioSegment) {
+			this.intInitialTimeAudioSegment = intInitialTimeSelection;
+			this.intFinalTimeAudioSegment = intFinalTimeSelection;
 		}
 	}
 
@@ -534,6 +552,7 @@ public class GraphicPanel extends JPanel implements PlayerListener {
 	protected void updateWaveformMousePosition(int intTime) {
         Iterator<Object> it = collectionListenerWaveform.iterator();
         WaveformListener waveformListener;
+        
         while (it.hasNext()) {
             waveformListener = (WaveformListener) it.next();
             waveformListener.waveformCurrentTime(intTime);
@@ -550,6 +569,7 @@ public class GraphicPanel extends JPanel implements PlayerListener {
 	protected void updateWaveformSelectedAudio(int intCurrentTime, int intInitialTime, int intFinalTime) {
 		Iterator<Object> it = collectionListenerWaveform.iterator();
         WaveformListener waveformListener;
+        
         while (it.hasNext()) {
         	waveformListener = (WaveformListener) it.next();
         	waveformListener.waveformSelectedAudio(intCurrentTime, intInitialTime, intFinalTime);
@@ -574,6 +594,7 @@ public class GraphicPanel extends JPanel implements PlayerListener {
 	protected void updateSpectrogramMousePosition(int intTime, int intFrequency) {
         Iterator<Object> it = collectionListenerSpectrogram.iterator();
         SpectrogramListener spectrogramListener;
+        
         while (it.hasNext()) {
             spectrogramListener = (SpectrogramListener) it.next();
             spectrogramListener.spectrogramCurrentTimeFrequency(intTime, intFrequency);
@@ -612,6 +633,7 @@ public class GraphicPanel extends JPanel implements PlayerListener {
 		
 		Iterator<Object> it = collectionListenerSpectrogram.iterator();
         SpectrogramListener spectrogramListener;
+        
         while (it.hasNext()) {
         	spectrogramListener = (SpectrogramListener) it.next();
         	spectrogramListener.spectrogramSelectedAudio(intCurrentTime, intInitialTime, intFinalTime, intInitialFrequency, intFinalFrequency, blnDrawWaveform);
@@ -629,6 +651,7 @@ public class GraphicPanel extends JPanel implements PlayerListener {
 	protected void updateSpectrogramViewAudio(int intInitialTime, int intFinalTime, int intInitialFrequency, int intFinalFrequency) {
 		Iterator<Object> it = collectionListenerSpectrogram.iterator();
         SpectrogramListener spectrogramListener;
+        
         while (it.hasNext()) {
         	spectrogramListener = (SpectrogramListener) it.next();
         	spectrogramListener.spectrogramViewAudio(intInitialTime, intFinalTime, intInitialFrequency, intFinalFrequency);

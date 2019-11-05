@@ -5,7 +5,7 @@ package br.unicamp.fnjv.wasis.graphics.spectrogram;
  * para todas as classes que estenderem <i>SpectrogramListener</i>.
  * 
  * @author Leandro Tacioli
- * @version 2.0 - 10/Fev/2015
+ * @version 3.0 - 25/Set/2017
  */
 public interface SpectrogramListener {
 	
@@ -15,7 +15,7 @@ public interface SpectrogramListener {
      * @param intTime      - Posição do tempo (em milisegundos)
      * @param intFrequency - Posição da frequência (em Hz)
      */
-    public void spectrogramCurrentTimeFrequency(final int intTime, final int intFrequency);
+    public void spectrogramCurrentTimeFrequency(int intTime, int intFrequency);
     
     /**
      * Áudio selecionado do espectrograma.
@@ -27,7 +27,7 @@ public interface SpectrogramListener {
      * @param intFinalFrequency   - Frequência final selecionada (em Hz)
      * @param blnDrawWaveform     - Desenha novamente o waveform ao selecionar parte do áudio
      */
-    public void spectrogramSelectedAudio(final int intCurrentTime, final int intInitialTime, final int intFinalTime, final int intInitialFrequency, final int intFinalFrequency, final boolean blnDrawWaveform);
+    public void spectrogramSelectedAudio(int intCurrentTime, int intInitialTime, int intFinalTime, int intInitialFrequency, int intFinalFrequency, boolean blnDrawWaveform);
     
     /**
      * Áudio visto no espectrograma.
@@ -37,5 +37,5 @@ public interface SpectrogramListener {
      * @param intInitialFrequency - Frequência inicial vista no espectrograma (em Hz)
      * @param intFinalFrequency   - Frequência final vista no espectrograma (em Hz)
      */
-    public void spectrogramViewAudio(final int intInitialTime, final int intFinalTime, final int intInitialFrequency, final int intFinalFrequency);
+    public void spectrogramViewAudio(int intInitialTime, int intFinalTime, int intInitialFrequency, int intFinalFrequency);
 }

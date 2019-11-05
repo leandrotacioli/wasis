@@ -20,14 +20,14 @@ import br.unicamp.fnjv.wasis.multimidia.AudioFile;
 public class AudioLibraryRenderer extends JLabel implements ListCellRenderer<String> {
 	private static final long serialVersionUID = -3360910079865502068L;
 	
-	private AudioLibrary objAudioLibrary;
+	private AudioLibraryController objAudioLibrary;
 	
 	/**
 	 * Renderiza a lista da biblioteca de áudio.<br>
 	 * <br>
 	 * Insere diferentes cores para os registros da biblioteca.
 	 */
-	protected AudioLibraryRenderer(AudioLibrary objAudioLibrary) {
+	protected AudioLibraryRenderer(AudioLibraryController objAudioLibrary) {
 		this.objAudioLibrary = objAudioLibrary;
 		
         setOpaque(true);

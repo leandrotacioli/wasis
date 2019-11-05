@@ -2,8 +2,6 @@ package br.unicamp.fnjv.wasis.swing;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
-import java.awt.Component;
-import java.awt.Container;
 import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -13,15 +11,11 @@ import javax.swing.BorderFactory;
 import javax.swing.JPanel;
 import javax.swing.border.Border;
 
-import com.leandrotacioli.libs.swing.comboboxfield.LTComboBoxField;
-import com.leandrotacioli.libs.swing.table.LTTable;
-import com.leandrotacioli.libs.swing.textfield.LTTextField;
-
 /**
  * Painéis padrão do sistema.
  * 
  * @author Leandro Tacioli
- * @version 2.0 - 20/Fev/2015
+ * @version 3.0 - 03/Out/2017
  */
 public class WasisPanel extends JPanel {
 	private static final long serialVersionUID = -4427069945337238300L;
@@ -38,6 +32,9 @@ public class WasisPanel extends JPanel {
     private final Color COLOR_TOP_PANEL_TOP = new Color(110, 110, 110, 0);
     private final Color COLOR_TOP_PANEL_BOTTOM = new Color(180, 180, 180, 0);
 	
+    /**
+     * Retorna o tamanho das bordas dos painéis.
+     */
     public int getSizeBorders() {
     	return STROKE_SIZE + SHADOW_OFFSET;
     }
@@ -107,42 +104,6 @@ public class WasisPanel extends JPanel {
 	 * <i>False</i> - Desabilita
 	 */
 	public void setComponentEnabled(boolean blnEnabled) {
-		setComponentEnabled(WasisPanel.this, blnEnabled);
-	}
-	
-	/**
-	 * Habilita/desabilita os componentes do painel.
-	 * Pode ser que haja outros painéis dentro do principal,
-	 * então utilizamos recursão para varrer os componentes
-	 * de todos os painéis.
-	 * 
-	 * @param container  - Painel
-	 * @param blnEnabled
-	 * <br>
-	 * <i>True</i> - Habilita
-	 * <br>
-	 * <i>False</i> - Desabilita
-	 */
-	private void setComponentEnabled(Container container, boolean blnEnabled) {
-		try {
-			Component[] components = container.getComponents();
-			
-	        for (Component component : components) {
-	        	component.setEnabled(blnEnabled);
-	        	
-	        	if (component instanceof LTTextField) {
-	            	((LTTextField) component).setEnabled(blnEnabled);
-	        	} else if (component instanceof LTComboBoxField) {
-	            	((LTComboBoxField) component).setEnabled(blnEnabled);
-	        	} else if (component instanceof LTTable) {
-	            	((LTTable) component).setEnabled(blnEnabled);
-	            } else if (component instanceof Container) {
-	            	setComponentEnabled((Container) component, blnEnabled);
-	            }
-	        }
-	        
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+		WasisContainer.setComponentEnabled(WasisPanel.this, blnEnabled);
 	}
 }

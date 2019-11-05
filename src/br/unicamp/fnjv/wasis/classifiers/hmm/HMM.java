@@ -1,5 +1,6 @@
 package br.unicamp.fnjv.wasis.classifiers.hmm;
 
+import java.io.Serializable;
 import java.text.DecimalFormat;
 
 import br.unicamp.fnjv.wasis.classifiers.hmm.db.DataBase;
@@ -12,9 +13,11 @@ import br.unicamp.fnjv.wasis.classifiers.hmm.db.ObjectIODataBase;
 *
 * @author Danny Su
 * 
-* @modified-by Leandro Tacioli - 23/Jun/2016
+* @modified-by Leandro Tacioli - 01/Abr/2018
 */
-public class HMM {
+public class HMM implements Serializable {
+	private static final long serialVersionUID = 6287751192917132810L;
+
 	/** Number of states.<br>
 	 * <br>
 	 * <b>Example:</b> Number of urns. */ 

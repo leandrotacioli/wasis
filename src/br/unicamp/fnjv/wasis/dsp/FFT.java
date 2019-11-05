@@ -4,7 +4,7 @@ package br.unicamp.fnjv.wasis.dsp;
  * Transforma amostra do domínio de tempo para o domínio de frequência.
  * 
  * @author Leandro Tacioli
- * @version 4.0 - 14/Feb/2017
+ * @version 4.0 - 27/Set/2017
  */
 public class FFT {
     private FFTWindowFunction objFFTWindowFunction;
@@ -73,8 +73,8 @@ public class FFT {
     /**
      * Retorna as amplitudes em dBFS.<br>
 	 * <br>
-	 * <b>IMPORTANTE:</b> Os primeiros valores correspondem às frequências mais baixas,
-	 * enquanto os últimos valores correspondem às frequências mais altas.
+	 * <b>IMPORTANTE:</b> Os primeiros valores são correspondentes às frequências mais baixas,
+	 * enquanto os últimos valores são correspondentes às frequências mais altas.
      * 
      * @return amplitude
      */

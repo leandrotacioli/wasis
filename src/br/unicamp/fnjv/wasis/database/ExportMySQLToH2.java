@@ -5,6 +5,9 @@ import java.sql.SQLException;
 
 import com.leandrotacioli.libs.LTDataTypes;
 
+import br.unicamp.fnjv.wasis.database.jdbc.DatabaseH2Connection;
+import br.unicamp.fnjv.wasis.database.jdbc.DatabaseMySQLConnection;
+
 /**
  * Exporta os dados do banco de dados MySQL para o H2.
  * 

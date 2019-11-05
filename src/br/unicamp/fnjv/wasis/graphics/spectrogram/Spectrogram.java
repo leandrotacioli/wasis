@@ -1,6 +1,7 @@
 package br.unicamp.fnjv.wasis.graphics.spectrogram;
 
 import java.awt.AlphaComposite;
+import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
@@ -16,11 +17,9 @@ import javax.swing.SwingWorker;
 
 import com.objectplanet.image.PngEncoder;
 
-import br.unicamp.fnjv.wasis.audio.temporary.AudioTemporary;
-import br.unicamp.fnjv.wasis.audio.temporary.AudioTemporaryImages;
+import br.unicamp.fnjv.wasis.audio.AudioImagesValues;
+import br.unicamp.fnjv.wasis.audio.AudioTemporary;
 import br.unicamp.fnjv.wasis.dsp.FFTParameters;
-import br.unicamp.fnjv.wasis.features.PowerSpectrumValues;
-import br.unicamp.fnjv.wasis.features.MFCC;
 import br.unicamp.fnjv.wasis.libs.FileManager;
 import br.unicamp.fnjv.wasis.main.WasisParameters;
 import br.unicamp.fnjv.wasis.multimidia.wav.AudioWav;
@@ -29,14 +28,15 @@ import br.unicamp.fnjv.wasis.multimidia.wav.AudioWav;
  * Processa o espectrograma de um arquivo de áudio.
  * 
  * @author Leandro Tacioli
- * @version 3.3 - 24/Fev/2017
+ * @version 4.0 - 18/Out/2017
  */
 public class Spectrogram extends JPanel {
 	private static final long serialVersionUID = -3247613272744461708L;
 
 	private AudioWav objAudioWav;                    // Objeto do Áudio WAV
 	
-	private int intAudioTemporaryIndex;              // Índice do áudio temporário na lista da memória 
+	private String strSpectrogramColorDisplay;       // Mapa de cores do Espectrograma
+	private Color colorAudioSegmentBox;              // Cor dos segmentos de áudio (ROIs)
 	
 	private int intFFTSampleSize;                    // Número de amostras da FFT (Potência de 2)
     private int intFFTOverlapFactor;                 // Fator de sobreposição (OVERLAP)
@@ -49,9 +49,6 @@ public class Spectrogram extends JPanel {
     private int intInitialTime;                      // Tempo inicial (em milisegundos) que está sendo mostrado na tela (atualizado com zoom in/out)
     private int intFinalTime;                        // Tempo final (em milisegundos) que está sendo mostrado na tela (atualizado com zoom in/out)
     
-	private int intInitialTimeOriginalImage;         // Tempo inicial da imagem original
-	private int intFinalTimeOriginalImage;           // Tempo final da imagem original
-
     private int intInitialTimeTemporaryImage;        // Tempo inicial da imagem temporária
 	private int intFinalTimeTemporaryImage;          // Tempo final da imagem temporária
 	
@@ -81,7 +78,7 @@ public class Spectrogram extends JPanel {
     /**
      * Tempo máximo que a imagem temporária de tamanho pequeno poderá ter.
      */
-    private final int TIME_SHORT_TEMPORARY_IMAGE = 60000;     // 60000 milisegundos = 60 segundos
+    private final int TIME_SHORT_TEMPORARY_IMAGE = 120000;     // 120000 milisegundos = 120 segundos
 	
 	/**
 	 * Imagem original do espectrograma (gerada na renderização)
@@ -107,11 +104,6 @@ public class Spectrogram extends JPanel {
 	 * Renderização para imagens temporárias do espectrograma.
 	 */
 	protected final int RENDER_TEMPORARY = 1;
-	
-	/**
-	 * Renderização para extração de dados para comparação e/ou gravação no banco de dados.
-	 */
-	protected final int RENDER_COMPARISON = 2;
     
     /**
      * Determina a taxa de zoom in/out que será aplicada à imagem (em porcentagem).
@@ -128,12 +120,21 @@ public class Spectrogram extends JPanel {
 	}
 	
 	/**
-	 * Retorna o índice do áudio temporário na lista da memória.
+	 * Retorna o mapa de cores para a visualização do espectrograma.
 	 * 
-	 * @return intAudioTemporaryIndex
+	 * @return strSpectrogramColorDisplay
 	 */
-	public int getAudioTemporaryIndex() {
-		return intAudioTemporaryIndex;
+	protected String getSpectrogramColorDisplay() {
+		return strSpectrogramColorDisplay;
+	}
+	
+	/**
+	 * Retorna a cor dos segmentos de áudio (ROIs).
+	 * 
+	 * @return colorAudioSegmentBox
+	 */
+	protected Color getColorAudioSegmentBox() {
+		return colorAudioSegmentBox;
 	}
 
     /**
@@ -141,7 +142,7 @@ public class Spectrogram extends JPanel {
 	 * 
 	 * @return intPainelWidth
 	 */
-	protected int getPanelWidth() {
+	public int getPanelWidth() {
 		return intPanelWidth;
 	}
     
@@ -159,7 +160,7 @@ public class Spectrogram extends JPanel {
 	 * 
 	 * @return intPanelHeight
 	 */
-	protected int getPanelHeight() {
+	public int getPanelHeight() {
 		return intPanelHeight;
 	}
 
@@ -280,11 +281,14 @@ public class Spectrogram extends JPanel {
      * Processa o espectrograma de um arquivo de áudio.
      * 
      * @param objAudioWav - Objeto do áudio WAV
+     * 
+	 * @throws CloneNotSupportedException 
      */
-	public Spectrogram(AudioWav objAudioWav) {
-		this.objAudioWav = objAudioWav;
+	public Spectrogram(AudioWav objAudioWav) throws CloneNotSupportedException {
+		this.objAudioWav = (AudioWav) objAudioWav.clone();
 		
-		this.intAudioTemporaryIndex = AudioTemporary.getAudioTemporaryIndex(objAudioWav);
+		this.strSpectrogramColorDisplay = WasisParameters.getInstance().getSpectrogramColorDisplay();
+		this.colorAudioSegmentBox = SpectrogramColorDisplay.getColorAudioSegmentBox();
 		
         this.intMaximumTime = objAudioWav.getTotalTime();
         this.intInitialTime = 0;
@@ -309,10 +313,14 @@ public class Spectrogram extends JPanel {
     	try {
 	    	blnIsRenderingSpectrogram = true;
 	    	
-	    	// Verifica se houve uma mudança nos parâmetros do FFT
-	    	if (intFFTSampleSize != FFTParameters.getInstance().getFFTSampleSize() || 
-	    			intFFTOverlapFactor != FFTParameters.getInstance().getFFTOverlapFactor() || 
-	    				strFFTWindowFuntion != FFTParameters.getInstance().getFFTWindowFunction()) {
+	    	// Verifica se houve uma mudança nos parâmetros de carregamento do espectrograma
+	    	if (!strSpectrogramColorDisplay.equals(WasisParameters.getInstance().getSpectrogramColorDisplay()) ||
+	    			intFFTSampleSize != FFTParameters.getInstance().getFFTSampleSize() || 
+	    				intFFTOverlapFactor != FFTParameters.getInstance().getFFTOverlapFactor() || 
+	    					!strFFTWindowFuntion.equals(FFTParameters.getInstance().getFFTWindowFunction())) {
+	    		
+	    		strSpectrogramColorDisplay = WasisParameters.getInstance().getSpectrogramColorDisplay();
+	    		colorAudioSegmentBox = SpectrogramColorDisplay.getColorAudioSegmentBox();
 	    		
 	    		intFFTSampleSize = FFTParameters.getInstance().getFFTSampleSize();
 	    		intFFTOverlapFactor = FFTParameters.getInstance().getFFTOverlapFactor();
@@ -327,8 +335,8 @@ public class Spectrogram extends JPanel {
 	    		blnAllowGenerateTemporaryImages = false;  // Bloqueia a criação das imagens temporárias que estiverem em progresso (se houver)
 	    	}
 	    	
-	    	// Verifica se há alguma imagem temporária para auxiliar no carregamento
-    		checkExistingTemporaryImage();
+	    	// Carrega a imagem temporária para auxiliar no carregamento (quando existir)
+	    	loadTemporaryImage();
     		
     		// Caso a imagem temporária existente compreenda toda a extensão do áudio, não é necessário realizar a renderização
     		if (intInitialTimeTemporaryImage == 0 && intFinalTimeTemporaryImage == intMaximumTime) {
@@ -340,37 +348,26 @@ public class Spectrogram extends JPanel {
 		    	SpectrogramRenderer objSpectrogramRenderer = new SpectrogramRenderer(this, RENDER_DEFAULT);
 		    	objSpectrogramRenderer.executeRenderer(intInitialTime, intFinalTime);
 		    	
-		    	intInitialTimeOriginalImage = intInitialTime;
-		    	intFinalTimeOriginalImage = intFinalTime;
-		    	
 		    	spectrogramOriginalImage = objSpectrogramRenderer.getSpectrogramImage(false);
 		    	
 		    	scaleFinalImage(spectrogramOriginalImage, intPanelWidth, intPanelHeight);
 		    	
-		    	// Caso seja gerada uma imagem temporária de tamanho pequeno, 
-		    	// executa novamente a renderização com o tempo inicial e final do áudio
-		    	// Será util no caso de haver um zoom na imagem e algum parâmetro da FFT for alterado
+		    	// Caso seja gerada uma imagem temporária de tamanho pequeno
 		    	if (blnIsShortTemporaryImage) {
+		    		// Executa novamente a renderização com o tempo inicial e final do áudio
+			    	// Será util no caso de haver um zoom na imagem / parâmetros da FFT / mapa de cores forem alterados
 		    		if (intInitialTime != 0 || intFinalTime != intMaximumTime) {
-		    			
-		    			// ************** Fazer a verificar se já existe a imagem ********************
-		    			// ************* Se não fizer tudo bem, mas vai carregar mais devagar *************
-		    			
-				    	objSpectrogramRenderer.executeRenderer(0, intMaximumTime);
-				    	
-				    	intInitialTimeOriginalImage = 0;
-				    	intFinalTimeOriginalImage = intMaximumTime;
-				    	
-				    	spectrogramOriginalImage = objSpectrogramRenderer.getSpectrogramImage(true);
-				    	
-				    	reloadSpectrogramFromOriginalImage();
+		    			objSpectrogramRenderer.executeRenderer(0, intMaximumTime);
 		    		}
-		    		
-		    		// Gera a imagem temporária quando somente uma for necessária
-			    	// Não é gerada em background, pois a imagem 'spectrogramImageTemporary' 
+			    	
+			    	spectrogramOriginalImage = objSpectrogramRenderer.getSpectrogramImage(true);
+			    	
+			    	// Gera a imagem temporária. Não é gerada em background, pois 'spectrogramImageTemporary' 
 			    	// será necessária para auxiliar em todos os carregamentos
 		    		generateTemporaryImageFile(spectrogramOriginalImage, 0, intMaximumTime);
-		    		
+			    	
+		    		reloadSpectrogramFromTemporaryImage();
+			    	
 		    	// Caso seja gerada uma imagem temporária de tamanho grande, 
 				// gera imagens temporárias do espectrograma em background
 				} else {
@@ -388,21 +385,22 @@ public class Spectrogram extends JPanel {
     }
     
     /**
-     * Verifica se já existe alguma imagem temporária na lista da memória (<i>AudioTemporary.getAudioTemporary()</i>).
+     * Carrega a imagem temporária para auxiliar no carregamento (quando existir)
      */
-    private void checkExistingTemporaryImage() {
-    	List<AudioTemporaryImages> lstAudioTemporaryImages = AudioTemporary.getAudioTemporary().get(intAudioTemporaryIndex).getAudioTemporaryImages();
+    private void loadTemporaryImage() {
+    	List<AudioImagesValues> lstTemporaryAudioImages = AudioTemporary.getAudioTemporary().get(objAudioWav.getAudioTemporaryIndex()).getAudioImages();
     	
     	try {
 			// Loop através das imagens do arquivo temporário
-			for (int indexImages = 0; indexImages < lstAudioTemporaryImages.size(); indexImages++) {
-				// É necessário verificar também se os parâmetros da FFT em processamento é igual das imagens temporárias
-				if (intFFTSampleSize == lstAudioTemporaryImages.get(indexImages).getFFTSamples() &&
-						intFFTOverlapFactor == lstAudioTemporaryImages.get(indexImages).getFFTOverlap() && 
-							strFFTWindowFuntion.equals(lstAudioTemporaryImages.get(indexImages).getFFTWindow())) {
+			for (int indexImages = 0; indexImages < lstTemporaryAudioImages.size(); indexImages++) {
+				// É necessário verificar também se os parâmetros do espectrograma em processamento é igual das imagens temporárias
+				if (strSpectrogramColorDisplay.equals(lstTemporaryAudioImages.get(indexImages).getSpectrogramColorDisplay()) &&
+						intFFTSampleSize == lstTemporaryAudioImages.get(indexImages).getFFTSamples() &&
+							intFFTOverlapFactor == lstTemporaryAudioImages.get(indexImages).getFFTOverlap() && 
+								strFFTWindowFuntion.equals(lstTemporaryAudioImages.get(indexImages).getFFTWindow())) {
 					
-					String strSpectrogramImagePath = lstAudioTemporaryImages.get(indexImages).getSpectrogramImagePath();
-					String strSpectrogramImageHash = lstAudioTemporaryImages.get(indexImages).getSpectrogramImageHash();
+					String strSpectrogramImagePath = lstTemporaryAudioImages.get(indexImages).getSpectrogramImagePath();
+					String strSpectrogramImageHash = lstTemporaryAudioImages.get(indexImages).getSpectrogramImageHash();
 					
 					File fileSpectrogram = new File(strSpectrogramImagePath);
 					String strSpectrogramImageHashMemory = FileManager.getFileHash(fileSpectrogram);
@@ -412,29 +410,23 @@ public class Spectrogram extends JPanel {
 						break;
 					}
 					
-					intInitialTimeTemporaryImage = lstAudioTemporaryImages.get(indexImages).getInitialTime();
-					intFinalTimeTemporaryImage = lstAudioTemporaryImages.get(indexImages).getFinalTime();
+					intInitialTimeTemporaryImage = lstTemporaryAudioImages.get(indexImages).getInitialTime();
+					intFinalTimeTemporaryImage = lstTemporaryAudioImages.get(indexImages).getFinalTime();
 					
 					spectrogramTemporaryImage = ImageIO.read(fileSpectrogram);
 					
 					// Caso a imagem temporária tenha tamanho pequeno
 					if (blnIsShortTemporaryImage) {
-				    	intInitialTimeOriginalImage = intInitialTimeTemporaryImage;
-				    	intFinalTimeOriginalImage = intFinalTimeTemporaryImage;
-				    	
 				    	spectrogramOriginalImage = spectrogramTemporaryImage;
 				    	
-				    	scaleFinalImage(spectrogramOriginalImage, intPanelWidth, intPanelHeight);
+				    	reloadSpectrogram();
 				    	
 				    // Imagem temporária de tamanho grande
 					} else {
 						if (intInitialTime == intInitialTimeTemporaryImage && intMaximumTime == intFinalTimeTemporaryImage) {
-							intInitialTimeOriginalImage = intInitialTime;
-					    	intFinalTimeOriginalImage = intMaximumTime;
+					    	spectrogramOriginalImage = spectrogramTemporaryImage;
 					    	
-							spectrogramOriginalImage = spectrogramTemporaryImage;
-							
-							scaleFinalImage(spectrogramOriginalImage, intPanelWidth, intPanelHeight);
+					    	reloadSpectrogram();
 						}
 					}
 				}
@@ -444,9 +436,6 @@ public class Spectrogram extends JPanel {
 			intInitialTimeTemporaryImage = 0;
 			intFinalTimeTemporaryImage = 0;
 
-			intInitialTimeOriginalImage = 0;
-			intFinalTimeOriginalImage = 0;
-			
 			spectrogramTemporaryImage = null;
 			spectrogramOriginalImage = null;
 			spectrogramFinalImage = null;
@@ -458,8 +447,7 @@ public class Spectrogram extends JPanel {
     /**
      * Gera imagens temporárias do espectrograma em background.<br>
      * <br>
-     * Essas imagens auxiliarão nos futuros carregamentos do espectrograma,
-     * realizando um processo mais rápido.
+     * Essas imagens auxiliarão nos futuros carregamentos do espectrograma, realizando um processo mais rápido.
      */
 	private void generateTemporaryImage() {
 		if (!blnIsGeneratingTemporaryImages && !blnIsShortTemporaryImage) {
@@ -477,7 +465,7 @@ public class Spectrogram extends JPanel {
 						if (intInitialTime != 0) {
 							intInitialTime = intInitialTime + 1;
 						}
-				
+						
 						int intRemainingTime = intMaximumTime - intInitialTime;    // Tempo restante a ser processado
 						
 						// A imagem temporária será gerada por partes equivalentes a 'TIME_SHORT_TEMPORARY_IMAGE'
@@ -547,7 +535,6 @@ public class Spectrogram extends JPanel {
     
     /**
      * Gera o arquivo PNG da imagem temporária.<br>
-     * <br>
      * A imagem temporária atual (<i>spectrogramImageTemporary</i>) 
      * é concatenada com uma nova imagem.<br>
      * <br>
@@ -607,10 +594,8 @@ public class Spectrogram extends JPanel {
      */
     private void saveTemporaryImage(int intInitialTime, int intFinalTime, boolean blnCompleteImage) {
     	try {
-    		String strSpectrogramImagePath = WasisParameters.getInstance().TEMPORARY_FOLDER + objAudioWav.getAudioFileNameTemporary() + "-" + intFFTSampleSize + "-" + intFFTOverlapFactor + "-" + strFFTWindowFuntion + ".png";
-			
+    		String strSpectrogramImagePath = WasisParameters.getInstance().TEMPORARY_FOLDER + objAudioWav.getAudioFileNameTemporary() + "-" + strSpectrogramColorDisplay + "-" + intFFTSampleSize + "-" + intFFTOverlapFactor + "-" + strFFTWindowFuntion + ".png";
     		File fileSpectrogramImagePath = new File(strSpectrogramImagePath);
-
     		OutputStream outputStream = new FileOutputStream(fileSpectrogramImagePath);
 	    	
     		PngEncoder objPngEncoder = new PngEncoder();
@@ -621,13 +606,13 @@ public class Spectrogram extends JPanel {
 	    	
 	    	String strSpectrogramImageHash = FileManager.getFileHash(fileSpectrogramImagePath);
 	    	
-	    	AudioTemporary.createAudioTemporaryImage(objAudioWav, strSpectrogramImagePath, strSpectrogramImageHash, intFFTSampleSize, intFFTOverlapFactor, strFFTWindowFuntion, intInitialTime, intFinalTime, blnCompleteImage);
+	    	AudioTemporary.createAudioImage(objAudioWav, strSpectrogramColorDisplay, strSpectrogramImagePath, strSpectrogramImageHash, intFFTSampleSize, intFFTOverlapFactor, strFFTWindowFuntion, intInitialTime, intFinalTime, blnCompleteImage);
 	    	
 	    	if (intInitialTime == 0 && intFinalTime == intMaximumTime) {
-	    		spectrogramOriginalImage = spectrogramTemporaryImage;
-	    		
 	    		intInitialTimeTemporaryImage = 0;
-	    		intFinalTimeOriginalImage = intMaximumTime;
+	    		intFinalTimeTemporaryImage = intMaximumTime;
+	    		
+	    		spectrogramOriginalImage = spectrogramTemporaryImage;
 	    	}
 	    	
     	} catch (Exception e) {
@@ -658,7 +643,7 @@ public class Spectrogram extends JPanel {
     	this.intInitialFrequency = intInitialFrequency;
     	this.intFinalFrequency = intFinalFrequency;
     	
-    	reloadSpectrogramFromOriginalImage();
+    	reloadSpectrogram();
     }
     
     /**
@@ -674,7 +659,7 @@ public class Spectrogram extends JPanel {
 	    	reloadSpectrogram();
 	    	
     	} catch (Exception e) {
-    		// Não é mais possível
+    		// Não é mais possível ampliar o zoom
     	}
     }
     
@@ -732,7 +717,7 @@ public class Spectrogram extends JPanel {
 
 		intFinalFrequency = intFinalFrequency - intValueZoomIn;
 		
-		reloadSpectrogramFromOriginalImage();
+		reloadSpectrogram();
     }
     
     /**
@@ -767,7 +752,7 @@ public class Spectrogram extends JPanel {
     		intFinalFrequency = intMaximumFrequency;
     	}
 
-    	reloadSpectrogramFromOriginalImage();
+    	reloadSpectrogram();
     }
     
     /**
@@ -778,7 +763,7 @@ public class Spectrogram extends JPanel {
 	    	intInitialFrequency = 0;
 	    	intFinalFrequency = intMaximumFrequency;
 	    	
-	    	reloadSpectrogramFromOriginalImage();
+	    	reloadSpectrogram();
     	}
     }
     
@@ -790,7 +775,7 @@ public class Spectrogram extends JPanel {
      * @param intInitialFrequency - Frequência inicial
      * @param intFinalFrequency   - Frequência final
      */
-    public void setZoomSelection(int intInitialTime, int intFinalTime, int intInitialFrequency, int intFinalFrequency) {
+    public void setZoomAudioSegment(int intInitialTime, int intFinalTime, int intInitialFrequency, int intFinalFrequency) {
     	this.intInitialTime = intInitialTime;
     	this.intFinalTime = intFinalTime;
     	this.intInitialFrequency = intInitialFrequency;
@@ -805,88 +790,31 @@ public class Spectrogram extends JPanel {
     private void reloadSpectrogram() {
     	// Caso a imagem temporária tenha o tamanho pequeno
     	if (blnIsShortTemporaryImage) {
-    		reloadSpectrogramFromCurrentTemporaryImage();
+    		reloadSpectrogramFromTemporaryImage();
     		
     	// Caso a imagem temporária tenha o tamanho grande
     	} else {
-    		
-    		// Se já houver uma imagem temporária carregada no buffer, verifica se os tempos iniciais e 
+    		// Se já existe uma imagem temporária carregada no buffer, verifica se os tempos iniciais e 
     		// finais solicitados estão dentro dos tempos inicias e finais da imagem temporária.
     		// Nesse caso, carrega o espectrograma através da imagem temporária
     		if (intInitialTime >= intInitialTimeTemporaryImage && intFinalTime <= intFinalTimeTemporaryImage) {
-    			reloadSpectrogramFromCurrentTemporaryImage();
+    			reloadSpectrogramFromTemporaryImage();
     			
     		// Senão renderiza novamente o espectrograma
     		} else {
     			blnAllowRenderSpectrogram = true;
+    			
     			//renderSpectrogram();
-    			//reloadSpectrogramFromExistingTemporaryImages();
     		}
     	}
     }
-    
-    /**
-     * Recarrega o espectrograma a partir da imagem original (gerada na renderização).
-     */
-    private void reloadSpectrogramFromOriginalImage() {
-    	BufferedImage spectrogramImageToReload = spectrogramOriginalImage;
-    	
-    	// ******************************************************************************
-    	// Tempo
-    	double dblTimePerPixel = (double) (intFinalTimeOriginalImage - intInitialTimeOriginalImage) / spectrogramImageToReload.getWidth();
-    	
-    	// Pega a posição do pixel do tempo inicial
-    	int intInitialTimePixel = (int) ((intInitialTime / dblTimePerPixel) - (intInitialTimeOriginalImage / dblTimePerPixel));
-    	
-    	if (intInitialTimePixel < 0) {
-    		intInitialTimePixel = 0;
-    	}
-    	
-    	// Pega a posição do pixel do tempo final
-    	int intFinalTimePixel = (int) (spectrogramImageToReload.getWidth() - ((intFinalTimeOriginalImage / dblTimePerPixel) - (intFinalTime / dblTimePerPixel)));
-    	
-    	if (intFinalTimePixel > spectrogramImageToReload.getWidth()) {
-    		intFinalTimePixel = spectrogramImageToReload.getWidth();
-    	}
-    	
-    	intFinalTimePixel = intFinalTimePixel - intInitialTimePixel;
-    	
-    	if (intFinalTimePixel <= 0) {
-    		intFinalTimePixel = 1;
-    	}
-    	
-    	// ******************************************************************************
-    	// Frequência
-    	double dblFrequencyPerPixel = (double) intMaximumFrequency / spectrogramImageToReload.getHeight();
-
-    	// Pega a posição do pixel da frequência inicial
-    	int intInitialFrequencyPixel = (int) ((intMaximumFrequency / dblFrequencyPerPixel) - (intInitialFrequency / dblFrequencyPerPixel));
-
-    	if (intInitialFrequencyPixel > spectrogramImageToReload.getHeight()) {
-    		intInitialFrequencyPixel = spectrogramImageToReload.getHeight();
-    	}
-    	
-    	// Pega a posição do pixel da frequência final
-    	int intFinalFrequencyPixel = (int) ((intMaximumFrequency / dblFrequencyPerPixel) - (intFinalFrequency / dblFrequencyPerPixel));
-    	
-    	if (intFinalFrequencyPixel < 0) {
-    		intFinalFrequencyPixel = 0;
-    	}
-    	
-    	intInitialFrequencyPixel = intInitialFrequencyPixel - intFinalFrequencyPixel;
-    	
-    	// Os valores de frequência inicial e final são invertidos, pois a frequência é mostrada de baixo para cima
-    	spectrogramImageToReload = spectrogramImageToReload.getSubimage(intInitialTimePixel, intFinalFrequencyPixel, intFinalTimePixel, intInitialFrequencyPixel);
-    	
-    	scaleFinalImage(spectrogramImageToReload, intPanelWidth, intPanelHeight);
-    }
 
     /**
-     * Recarrega o espectrograma a partir de uma imagem temporária.<br>
+     * Recarrega o espectrograma a partir da imagem temporária.<br>
      * <br>
      * Caso não haja uma imagem temporária, o espectrograma deve ser renderizado novamente.
      */
-    private void reloadSpectrogramFromCurrentTemporaryImage() {
+    private void reloadSpectrogramFromTemporaryImage() {
     	BufferedImage spectrogramImageToReload = spectrogramTemporaryImage;
     	
     	// ******************************************************************************
@@ -940,16 +868,26 @@ public class Spectrogram extends JPanel {
     }
 
     /**
+     * Ajusta o tamanho do espectrograma final no painel.
+     */
+    protected void scaleFinalImage() {
+    	if (blnIsShortTemporaryImage) {
+    		reloadSpectrogramFromTemporaryImage();
+    	} else {
+    		scaleFinalImage(spectrogramFinalImage, intPanelWidth, intPanelHeight);
+    	}
+    }
+    
+    /**
      * Ajusta o tamanho do espectrograma final no painel.<br>
      * <br>
-     * A variável <i>spectrogramImageFinal</i> é alterada para
-     * o tamanho final.
+     * A variável <i>spectrogramImageFinal</i> é alterada para o tamanho final.
      * 
      * @param spectrogramImageToScale - Imagem do espectrograma a ser ajustada
      * @param intImageWidth           - Comprimento final da imagem
      * @param intImageHeight          - Altura final da imagem
      */
-    protected void scaleFinalImage(final BufferedImage spectrogramImageToScale, int intImageWidth, int intImageHeight) {
+    private void scaleFinalImage(BufferedImage spectrogramImageToScale, int intImageWidth, int intImageHeight) {
     	BufferedImage imageToScale = new BufferedImage(intImageWidth, intImageHeight, BufferedImage.TYPE_INT_RGB);
     	
         final Graphics2D graphics2D = imageToScale.createGraphics();
@@ -961,79 +899,6 @@ public class Spectrogram extends JPanel {
         graphics2D.dispose();
         
         spectrogramFinalImage = imageToScale;
-    }
-    
-    /**
-     * Retorna os dados utilizados pelo sistema para realização de comparação de dados. <br>
-     * <br>
-     * Os dados são correspondentes à uma lista que contém os dados de frequência e intensidade máxima (decibel).
-     * 
-     * @param intInitialTime      - Tempo inicial a partir do qual serão retornados os dados
-     * @param intFinalTime        - Tempo final a partir do qual serão retornados os dados
-     * @param intInitialFrequency - Frequência inicial a partir da qual serão retornados os dados
-     * @param intFinalFrequency   - Frequência final a partir da qual serão retornados os dados
-     * 
-     * @return lstAudioComparisonValues
-     */
-    public List<PowerSpectrumValues> extractComparisonData(int intInitialTime, int intFinalTime, int intInitialFrequency, int intFinalFrequency) {
-    	SpectrogramRenderer objSpectrogramRenderer = new SpectrogramRenderer(this, RENDER_COMPARISON);
-    	objSpectrogramRenderer.executeRenderer(intInitialTime, intFinalTime);
-    	
-    	List<PowerSpectrumValues> lstAudioComparisonValues = objSpectrogramRenderer.getAudioComparisonValues();
-    	
-    	// Exclui da lista os valores que não estão entre a frequência inicial e final (exclui do final para o começo da lista)
-    	int intFrequencySamples = FFTParameters.FFT_SAMPLE_SIZE_COMPARISON / 2;
-        int intMargin = (int) ((float) (intMaximumFrequency / (float) intFrequencySamples)); // Margem para pegar uma amostra inferior e uma superior
-        
-        for (int indexComparisonValue = lstAudioComparisonValues.size() - 1; indexComparisonValue >= 0; indexComparisonValue--) {
-        	if (lstAudioComparisonValues.get(indexComparisonValue).getFrequency() > intFinalFrequency + intMargin) {
-        		lstAudioComparisonValues.remove(indexComparisonValue);
-        	} else if (lstAudioComparisonValues.get(indexComparisonValue).getFrequency() < intInitialFrequency - intMargin) {
-        		lstAudioComparisonValues.remove(indexComparisonValue);
-        	}
-        }
-                
-    	return lstAudioComparisonValues;
-    }
-    
-    public double[][] extractComparisonDataMFCC(int intInitialTime, int intFinalTime, int intInitialFrequency, int intFinalFrequency) {
-    	// IMPORTANTE: intInitialFrequency & intFinalFrequency são ignoradas pois MFCCs trata o frame inteiro
-    	int intInitialChunkToProcess = getAudioWav().getSampleFromTime(intInitialTime);
-		int intFinalChunkToProcess = getAudioWav().getSampleFromTime(intFinalTime);
-		
-		double[] arrayAmplitudes = getAudioWav().getAmplitudesChunk(1, intInitialChunkToProcess, intFinalChunkToProcess);
-		
-		MFCC objMFCC = new MFCC();
-		objMFCC.process(arrayAmplitudes, getAudioWav().getWavHeader().getSampleRate());
-		
-		double[][] mfccVector = objMFCC.getMFCC();
-		double[] mean = objMFCC.getMean();
-		double[] standardDeviation = objMFCC.getStandardDeviation();
-		
-		for (int indexFrame = 0; indexFrame < mfccVector.length; indexFrame++) {
-			System.out.print("MFCC: " + indexFrame + "	");
-        	for (int indexCoefficient = 0; indexCoefficient < mfccVector[indexFrame].length; indexCoefficient++) {
-        		System.out.print(mfccVector[indexFrame][indexCoefficient] + "	");
-        	}
-        	System.out.println("");
-		}
-		
-		System.out.println("");
-		
-		System.out.print("Mean: " + "	");
-		for (int i = 0; i < mean.length; i++) {
-    		System.out.print(mean[i] + "	");
-    	}
-		System.out.println("");
-		
-		System.out.print("SD: " + "	");
-		for (int i = 0; i < standardDeviation.length; i++) {
-    		System.out.print(standardDeviation[i] + "	");
-    	}
-		System.out.println("");
-		System.out.println("-----------------------------------");
-		
-		return mfccVector;
     }
     
     /**

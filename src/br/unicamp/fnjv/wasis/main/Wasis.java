@@ -3,12 +3,14 @@ package br.unicamp.fnjv.wasis.main;
 import java.awt.Color;
 import java.awt.Desktop;
 import java.awt.Dimension;
+import java.awt.Event;
 import java.awt.Graphics;
+import java.awt.KeyEventDispatcher;
+import java.awt.KeyboardFocusManager;
 
-import javax.swing.AbstractAction;
+import javax.swing.Box;
 import javax.swing.ImageIcon;
 import javax.swing.JCheckBoxMenuItem;
-import javax.swing.JComponent;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -27,20 +29,20 @@ import javax.swing.WindowConstants;
 
 import net.miginfocom.swing.MigLayout;
 import br.unicamp.fnjv.wasis.about.ScreenAbout;
+import br.unicamp.fnjv.wasis.audio.AudioTemporary;
 import br.unicamp.fnjv.wasis.audio.ScreenSaveAudio;
-import br.unicamp.fnjv.wasis.audio.ScreenSaveAudioData;
-import br.unicamp.fnjv.wasis.audio.comparison.ScreenAudioComparison;
-import br.unicamp.fnjv.wasis.audio.comparison.ScreenAudioComparisonHMM;
-import br.unicamp.fnjv.wasis.audio.library.AudioLibrary;
+import br.unicamp.fnjv.wasis.audio.classification.ScreenAudioClassificationBruteForce;
+import br.unicamp.fnjv.wasis.audio.classification.ScreenAudioClassificationClassModel;
+import br.unicamp.fnjv.wasis.audio.library.AudioLibraryController;
 import br.unicamp.fnjv.wasis.audio.library.AudioLibraryListener;
-import br.unicamp.fnjv.wasis.audio.library.OpenAudioLibrary;
-import br.unicamp.fnjv.wasis.audio.library.SaveAudioLibrary;
-import br.unicamp.fnjv.wasis.audio.temporary.AudioTemporary;
+import br.unicamp.fnjv.wasis.audio.library.ScreenOpenAudioLibrary;
+import br.unicamp.fnjv.wasis.audio.library.ScreenSaveAudioLibrary;
 import br.unicamp.fnjv.wasis.classifiers.ScreenModelBuilder;
 import br.unicamp.fnjv.wasis.dsp.FFTParameters;
 import br.unicamp.fnjv.wasis.dsp.FFTWindowFunction;
 import br.unicamp.fnjv.wasis.graphics.GraphicPanel;
 import br.unicamp.fnjv.wasis.graphics.spectrogram.Spectrogram;
+import br.unicamp.fnjv.wasis.graphics.spectrogram.SpectrogramColorDisplay;
 import br.unicamp.fnjv.wasis.graphics.spectrogram.SpectrogramGraphicPanel;
 import br.unicamp.fnjv.wasis.graphics.spectrogram.SpectrogramListener;
 import br.unicamp.fnjv.wasis.graphics.waveform.Waveform;
@@ -66,8 +68,6 @@ import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.AdjustmentEvent;
 import java.awt.event.AdjustmentListener;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.KeyEvent;
@@ -77,6 +77,8 @@ import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.ResourceBundle;
 import java.util.concurrent.ExecutionException;
@@ -91,32 +93,30 @@ import com.leandrotacioli.libs.swing.textfield.LTTextField;
  * Sistema WASIS.
  * 
  * @author Leandro Tacioli
- * @version 2.0.0 - 03/Jul/2017
+ * @version 2.0.0 - 01/Abr/2018
  */
 public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, SpectrogramListener, WaveformListener, PlayerListener {
 	private static final long serialVersionUID = -5829047685955210342L;
 	
 	// Versão do Software
-	private final String WASIS_VERSION = "2.0.0 - 01/06/2017";
+	private final String WASIS_VERSION = "2.0.0 - 10/04/2018";
 	
 	// Pacote de linguagens
 	private ResourceBundle rsBundle = WasisParameters.getInstance().getBundle();
-	
-	// Menu
-	private JCheckBoxMenuItem menuViewFullWaveform;
 	
 	// FFT - Parâmetros
 	private LTComboBoxField cmbFFTSamples;
 	private LTTextField txtFFTOverlap;
 	private LTComboBoxField cmbFFTWindow;
 	
-	// Biblioteca de áudio
-	private AudioLibrary objAudioLibrary;
+	// Controller da Biblioteca de áudio
+	private AudioLibraryController objAudioLibraryController;
 	
 	// Áudio WAV
 	private AudioWav objAudioWav;
 	private File[] fileAudioList;
 	private String strAudioFilePath;
+	private boolean blnAudioFileLoadedFromLibrary;
 	
     // Waveform
 	private WasisPanel panelWaveform;
@@ -127,9 +127,6 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 	private WasisPanel panelSpectrogram;
 	private Spectrogram objSpectrogram;
 	private GraphicPanel objSpectrogramGraphicPanel;
-	
-	private int intSpectrogramWidthTemporary;
-	private int intSpectrogramHeightTemporary;
 	
 	// Scrollbar do painel de visualização dos áudios (waveform e espectrograma)
 	private WasisPanel panelScrollbarVerticalVisualization;
@@ -192,22 +189,14 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 	// Painel do rodapé do sistema
 	private JLabel lblMousePosition;
 	
-	// Estabelece algumas constantes que define o tipo
-	// de recarregamento do arquivo de áudio
-	private final int RELOAD_ZOOM_TIME = 1;
-	private final int RELOAD_ZOOM_FREQUENCY = 2;
-	private final int RELOAD_PARAMETERS = 3;
-	private final int RELOAD_WAVEFORM_SELECTION = 4;
-	private final int RELOAD_SCROLL_TIME_SELECTION = 5;
-	private final int RELOAD_SCROLL_FREQUENCY_SELECTION = 6;
+	// Define os tipos de zooms que podem ser utilizados no recarregamento do arquivo de áudio
+	private final int ZOOM_TIME = 0;
+	private final int ZOOM_FREQUENCY = 1;
 	
-	// Define os tipos de zooms que podem ser utilizados
-	// no recarregamento do arquivo de áudio
-	private final int ZOOM_UNKNOWN = 0;
-	private final int ZOOM_IN = 1;
-	private final int ZOOM_OUT = 2;
-	private final int ZOOM_RESET = 3;
-
+	private final int ZOOM_IN = 101;
+	private final int ZOOM_OUT = 102;
+	private final int ZOOM_RESET = 103;
+	
 	/**
 	 * Carrega a aplicação.
 	 */
@@ -235,11 +224,8 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 	 */
 	private void loadScreen() {
 		try {
-			// Título do sistema
-			setTitle(rsBundle.getString("wasis_title"));
-			
-			// Ícone do sistema
-			setIconImage(WasisParameters.getInstance().getWasisIcon());
+			setTitle(rsBundle.getString("wasis_title"));                  // Título do sistema
+			setIconImage(WasisParameters.getInstance().getWasisIcon());   // Ícone do sistema
 			
 			// Atribui um "Look and Feel" padrão ao sistema
 			// "Look" refere-se à aparência dos widgets GUI (JComponents) 
@@ -255,24 +241,46 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 			// Estabelece a cor padrão do background
 			getContentPane().setBackground(WasisParameters.COLOR_BACKGROUND_MAIN);
 			
-			// Toca o player quando a barra de espaço for pressionada
-			getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0), "space_bar");
-			getRootPane().getActionMap().put("space_bar", new AbstractAction() {
-				private static final long serialVersionUID = 2142037368898690013L;
-
-				@Override
-	            public void actionPerformed(ActionEvent event) {
-					requestFocusInWindow();
-					
-					if (objAudioWav != null && strAudioFilePath != null && objPlayer != null) {
-				 		if (objPlayer.getPlayerStatus() != objPlayer.STATUS_PLAYING) {
- 							playAudio();
-						} else {
-							stopAudio();
-						}
-					}
-	            }
-	        });
+			// Atalhos no teclado para executar determinadas funções
+			KeyboardFocusManager keyboardManager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+			
+			keyboardManager.addKeyEventDispatcher(new KeyEventDispatcher() {
+		    	@Override
+		        public boolean dispatchKeyEvent(KeyEvent e) {
+		    		if (keyboardManager.getCurrentFocusCycleRoot() == Wasis.this) {
+			    		// Executa player ao pressionar a barra de espaço
+			    		if (e.getID() == KeyEvent.KEY_RELEASED && e.getKeyCode() == KeyEvent.VK_SPACE) {
+			    			if (objAudioWav != null && objPlayer != null) {
+						 		if (objPlayer.getPlayerStatus() != objPlayer.STATUS_PLAYING) {
+		 							playAudio();
+								} else {
+									stopAudio();
+								}
+							}
+			    		// Zoom In no espectrograma no eixo de tempo - 'CTRL +' ou 'CTRL ='
+			    		} else if (e.getID() == KeyEvent.KEY_RELEASED && ((e.getModifiers() & KeyEvent.CTRL_MASK) != 0) && (e.getKeyCode() == KeyEvent.VK_PLUS || e.getKeyCode() == KeyEvent.VK_EQUALS || e.getKeyCode() == 107)) {
+			    			processAudioZoomTimeFrequency(ZOOM_TIME, ZOOM_IN);
+			            // Zoom Out no espectrograma no eixo de tempo - 'CTRL -'
+			    		} else if (e.getID() == KeyEvent.KEY_RELEASED && ((e.getModifiers() & KeyEvent.CTRL_MASK) != 0) && (e.getKeyCode() == KeyEvent.VK_MINUS || e.getKeyCode() == 109)) {
+			    			processAudioZoomTimeFrequency(ZOOM_TIME,ZOOM_OUT);
+			            // Zoom Reset no espectrograma no eixo de tempo - 'CTRL 0'
+			    		} else if (e.getID() == KeyEvent.KEY_RELEASED && ((e.getModifiers() & KeyEvent.CTRL_MASK) != 0) && (e.getKeyCode() == KeyEvent.VK_0 || e.getKeyCode() == KeyEvent.VK_NUMPAD0)) {
+			    			processAudioZoomTimeFrequency(ZOOM_TIME,ZOOM_RESET);
+			    		// Zoom In no espectrograma no eixo de frequência - 'ALT +' ou 'ALT ='
+			    		} else if (e.getID() == KeyEvent.KEY_RELEASED && ((e.getModifiers() & KeyEvent.ALT_MASK) != 0) && (e.getKeyCode() == KeyEvent.VK_PLUS || e.getKeyCode() == KeyEvent.VK_EQUALS || e.getKeyCode() == 107)) {
+			    			processAudioZoomTimeFrequency(ZOOM_FREQUENCY, ZOOM_IN);
+			            // Zoom Out no espectrograma no eixo de frequência - 'ALT -'
+			    		} else if (e.getID() == KeyEvent.KEY_RELEASED && ((e.getModifiers() & KeyEvent.ALT_MASK) != 0) && (e.getKeyCode() == KeyEvent.VK_MINUS || e.getKeyCode() == 109)) {
+			    			processAudioZoomTimeFrequency(ZOOM_FREQUENCY, ZOOM_OUT);
+			            // Zoom Reset no espectrograma no eixo de frequência - 'ALT 0'
+			    		} else if (e.getID() == KeyEvent.KEY_RELEASED && ((e.getModifiers() & KeyEvent.ALT_MASK) != 0) && (e.getKeyCode() == KeyEvent.VK_0 || e.getKeyCode() == KeyEvent.VK_NUMPAD0)) {
+			    			processAudioZoomTimeFrequency(ZOOM_FREQUENCY, ZOOM_RESET);
+			            }
+		    		}
+		            
+		            return false;
+		        }
+		    });
 			
 			// Executa o método 'exitSystem()' ao clicar no botão fechar
 			addWindowListener(new WindowAdapter() {
@@ -287,8 +295,8 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 			
 			// Layout do frame principal
 			getContentPane().setLayout(new MigLayout("insets 0", "[grow]", "[] 2 " +        // Barra de ferramentas
-					                                                       "[grow] 2 "  +    // Painel de visualização de áudios
-					                                                       "[62.00] 2 " +    // Barra de ferramentas de controles
+					                                                       "[grow] 2 "  +   // Painel de visualização de áudios
+					                                                       "[62.00] 2 " +   // Barra de ferramentas de controles
 					                                                       "[22.00]"));     // Rodapé
 			
 			// *********************************************************************************************
@@ -315,7 +323,7 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 				WasisButton btnNewAudioLibrary = new WasisButton(WasisButton.BUTTON_TYPE_TOOLBAR, rsBundle.getString("tool_bar_audio_library_new_audio_library_button_tool_tip"), new ImageIcon("res/images/toolbar/new_library.png"));
 				btnNewAudioLibrary.addActionListener(new ActionListener() {
 					public void actionPerformed(ActionEvent event) {
-						createNewLibrary();
+						createAudioLibrary();
 					}
 				});
 				
@@ -395,25 +403,25 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 				cmbFFTWindow.addFocusListener(new UpdateFFTParameters());
 
 				// *********************************************************************************************
-				// Painel de Análises
-				WasisPanelRounded panelToolBarAnalyze = new WasisPanelRounded(rsBundle.getString("tool_bar_identify_description"));
-				panelToolBarAnalyze.setMinimumSize(new Dimension(PANEL_TOOL_BAR_WIDTH_MIN, PANEL_TOOL_BAR_HEIGHT));
-				panelToolBarAnalyze.setMaximumSize(new Dimension(PANEL_TOOL_BAR_WIDTH_MAX, PANEL_TOOL_BAR_HEIGHT));
-				panelToolBarAnalyze.setLayout(new MigLayout("insets 0", "8 [] 8", "[grow]"));
+				// Painel de Identificação
+				WasisPanelRounded panelToolBarIdentification = new WasisPanelRounded(rsBundle.getString("tool_bar_identification_description"));
+				panelToolBarIdentification.setMinimumSize(new Dimension(PANEL_TOOL_BAR_WIDTH_MIN, PANEL_TOOL_BAR_HEIGHT));
+				panelToolBarIdentification.setMaximumSize(new Dimension(PANEL_TOOL_BAR_WIDTH_MAX, PANEL_TOOL_BAR_HEIGHT));
+				panelToolBarIdentification.setLayout(new MigLayout("insets 0", "8 [] 8", "[grow]"));
 				
-				// Comparar Áudios
-				WasisButton btnCompareSounds = new WasisButton(WasisButton.BUTTON_TYPE_TOOLBAR, rsBundle.getString("menu_identify_compare_sounds"), new ImageIcon("res/images/toolbar/compare_brute_force.png"));
-				btnCompareSounds.addActionListener(new ActionListener() {
+				// Classificação de Áudio - Bruta Força
+				WasisButton btnClassificationBruteForce = new WasisButton(WasisButton.BUTTON_TYPE_TOOLBAR, rsBundle.getString("menu_identification_brute_force"), new ImageIcon("res/images/toolbar/compare_brute_force.png"));
+				btnClassificationBruteForce.addActionListener(new ActionListener() {
 					public void actionPerformed(ActionEvent event) {
-						compareAudio();
+						audioClassificationBruteForce();
 					}
 				});
 				
-				// Comparar Áudios HMM
-				WasisButton btnCompareSoundsHMM = new WasisButton(WasisButton.BUTTON_TYPE_TOOLBAR, rsBundle.getString("menu_identify_compare_sounds_hmm"), new ImageIcon("res/images/toolbar/compare_class_model.png"));
-				btnCompareSoundsHMM.addActionListener(new ActionListener() {
+				// Classificação de Áudio - Modelo de Classe
+				WasisButton btnClassificationClassModel = new WasisButton(WasisButton.BUTTON_TYPE_TOOLBAR, rsBundle.getString("menu_identification_class_model"), new ImageIcon("res/images/toolbar/compare_class_model.png"));
+				btnClassificationClassModel.addActionListener(new ActionListener() {
 					public void actionPerformed(ActionEvent event) {
-						compareAudioHMM();
+						audioClassificationClassModel();
 					}
 				});
 				
@@ -457,9 +465,9 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 				panelToolBarFFTParameters.add(txtFFTOverlap, "cell 0 0, width 75, gap 4 0 0 4");
 				panelToolBarFFTParameters.add(cmbFFTWindow, "cell 0 0, width 150, gap 4 0 0 4");
 				
-				panelToolBar.add(panelToolBarAnalyze, "cell 3 0");
-				panelToolBarAnalyze.add(btnCompareSounds, "cell 0 0, gap 3 0 0 0");
-				panelToolBarAnalyze.add(btnCompareSoundsHMM, "cell 0 0, gap 5 2 0 0");
+				panelToolBar.add(panelToolBarIdentification, "cell 3 0");
+				panelToolBarIdentification.add(btnClassificationBruteForce, "cell 0 0, gap 3 0 0 0");
+				panelToolBarIdentification.add(btnClassificationClassModel, "cell 0 0, gap 5 2 0 0");
 				
 				//panelToolBar.add(panelToolBarUpdate, "cell 3 0");
 				//panelToolBarUpdate.add(btnUpdateDatabase, "cell 0 0, gap 3 0 0 0");
@@ -475,11 +483,11 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 				
 				// *********************************************************************************************
 				// Biblioteca de áudio
-				objAudioLibrary = new AudioLibrary();
-				objAudioLibrary.setMinimumSize(new Dimension(263, 25));
-				objAudioLibrary.addAudioLibraryListener(Wasis.this);
+				objAudioLibraryController = new AudioLibraryController();
+				objAudioLibraryController.setMinimumSize(new Dimension(263, 25));
+				objAudioLibraryController.addAudioLibraryListener(Wasis.this);
 				
-				panelAudioLibrary.add(objAudioLibrary, "cell 0 0, grow");
+				panelAudioLibrary.add(objAudioLibraryController, "cell 0 0, grow");
 				
 				// *********************************************************************************************
 				// Painel de visualização do áudio (Waveform e Espectrograma)
@@ -487,7 +495,6 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 				panelAudioVisualization.setLayout(new MigLayout("insets 5", "[grow] 2 [10.00]", "[90.00] 2 [grow]"));
 				panelAudioVisualization.setMinimumSize(new Dimension(600, 25));
 				
-				// *********************************************************************************************
 				// Scroll horizontal e vertical
 				scrollBarHorizontalVisualization = new WasisScrollBar(JScrollBar.HORIZONTAL, 0, 0, 0, 0);
 				scrollBarVerticalVisualization = new WasisScrollBar(JScrollBar.VERTICAL, 0, 0, 0, 0);
@@ -497,16 +504,13 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 				panelScrollbarVerticalVisualization.setLayout(new MigLayout("insets 0", "[grow]", "[grow]"));
 				panelScrollbarVerticalVisualization.add(scrollBarVerticalVisualization, "cell 0 0, grow, gap 1 3 1 3");
 				
-				// *********************************************************************************************
 				// Waveform
 				panelWaveform = new WasisPanel();
 				panelWaveform.setLayout(new MigLayout("insets 0", "[grow]", "[grow]"));
 				
-				// *********************************************************************************************
 				// Espectrograma
 				panelSpectrogram = new WasisPanel();
 				panelSpectrogram.setLayout(new MigLayout("insets 0", "[grow]", "[grow] 0 [10.00]"));
-				panelSpectrogram.addComponentListener(new ResizeSpectrogramAdapter());
 				panelSpectrogram.add(scrollBarHorizontalVisualization, "cell 0 1, grow, gap 1 2 0 3");
 				
 				// *********************************************************************************************
@@ -575,9 +579,7 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 				btnZoomInTime.setToolTipText(rsBundle.getString("zoom_in_time"));
 				btnZoomInTime.addActionListener(new ActionListener() {
 					public void actionPerformed(ActionEvent event) {
-						if (objSpectrogram != null) {
-							reloadAudio(RELOAD_ZOOM_TIME, ZOOM_IN);
-						}
+						processAudioZoomTimeFrequency(ZOOM_TIME, ZOOM_IN);
 					}
 				});
 				
@@ -585,9 +587,7 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 				WasisButton btnZoomOutTime = new WasisButton(WasisButton.BUTTON_TYPE_ZOOM, rsBundle.getString("zoom_out_time"), new ImageIcon("res/images/zoom/zoom-out-time.png"));
 				btnZoomOutTime.addActionListener(new ActionListener() {
 					public void actionPerformed(ActionEvent event) {
-						if (objSpectrogram != null) {
-							reloadAudio(RELOAD_ZOOM_TIME, ZOOM_OUT);
-						}
+						processAudioZoomTimeFrequency(ZOOM_TIME, ZOOM_OUT);
 					}
 				});
 				
@@ -595,9 +595,7 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 				WasisButton btnZoomResetTime = new WasisButton(WasisButton.BUTTON_TYPE_ZOOM, rsBundle.getString("zoom_reset_time"), new ImageIcon("res/images/zoom/zoom-reset-time.png"));
 				btnZoomResetTime.addActionListener(new ActionListener() {
 					public void actionPerformed(ActionEvent event) {
-						if (objSpectrogram != null) {
-							reloadAudio(RELOAD_ZOOM_TIME, ZOOM_RESET);
-						}
+						processAudioZoomTimeFrequency(ZOOM_TIME, ZOOM_RESET);
 					}
 				});
 				
@@ -605,9 +603,7 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 				WasisButton btnZoomInFrequency = new WasisButton(WasisButton.BUTTON_TYPE_ZOOM, rsBundle.getString("zoom_in_frequency"), new ImageIcon("res/images/zoom/zoom-in-frequency.png"));
 				btnZoomInFrequency.addActionListener(new ActionListener() {
 					public void actionPerformed(ActionEvent event) {
-						if (objSpectrogram != null) {
-							reloadAudio(RELOAD_ZOOM_FREQUENCY, ZOOM_IN);
-						}
+						processAudioZoomTimeFrequency(ZOOM_FREQUENCY, ZOOM_IN);
 					}
 				});
 				
@@ -615,9 +611,7 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 				WasisButton btnZoomOutFrequency = new WasisButton(WasisButton.BUTTON_TYPE_ZOOM, rsBundle.getString("zoom_out_frequency"), new ImageIcon("res/images/zoom/zoom-out-frequency.png"));
 				btnZoomOutFrequency.addActionListener(new ActionListener() {
 					public void actionPerformed(ActionEvent event) {
-						if (objSpectrogram != null) {
-							reloadAudio(RELOAD_ZOOM_FREQUENCY, ZOOM_OUT);
-						}
+						processAudioZoomTimeFrequency(ZOOM_FREQUENCY, ZOOM_OUT);
 					}
 				});
 				
@@ -625,9 +619,7 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 				WasisButton btnZoomResetFrequency = new WasisButton(WasisButton.BUTTON_TYPE_ZOOM, rsBundle.getString("zoom_reset_frequency"), new ImageIcon("res/images/zoom/zoom-reset-frequency.png"));
 				btnZoomResetFrequency.addActionListener(new ActionListener() {
 					public void actionPerformed(ActionEvent event) {
-						if (objSpectrogram != null) {
-							reloadAudio(RELOAD_ZOOM_FREQUENCY, ZOOM_RESET);
-						}
+						processAudioZoomTimeFrequency(ZOOM_FREQUENCY, ZOOM_RESET);
 					}
 				});
 				
@@ -744,7 +736,9 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 		 		lblFooterDivision.setIcon(iconFooterDivision);
 		 		lblFooterDivision.setVisible(true);
 		 		
-				JLabel lblDatabaseConnection = new JLabel("      " + rsBundle.getString("database_connection") + " H2 - Localhost") {
+		 		WasisParameters.getInstance().checkDatabaseConnection();
+		 		
+				JLabel lblDatabaseConnection = new JLabel("      " + rsBundle.getString("database_connection") + " " + WasisParameters.getInstance().getDatabaseEngine() + " - " + WasisParameters.getInstance().getDatabaseServer()) {
 					private static final long serialVersionUID = -1477135321972453268L;
 					
 					@Override
@@ -765,11 +759,11 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 				};
 				lblDatabaseConnection.setFont(LTParameters.getInstance().getFontComponentLabel());
 				
-				// A cada 15 segundos verifica se a conexão com o banco de dados está ativa
+				// A cada 15 segundos verifica se a conexão com o banco de dados está ativa e exibe no rodapé
 				Timer timer = new Timer(15000, new ActionListener() {
 				    @Override
 				    public void actionPerformed(ActionEvent e) {
-				    	WasisParameters.getInstance().loadDatabaseParameters();
+				    	WasisParameters.getInstance().checkDatabaseConnection();
 				    	lblDatabaseConnection.repaint();
 				    }
 				});
@@ -794,9 +788,6 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 			setVisible(true);
 			requestFocusInWindow();
 			
-			intSpectrogramWidthTemporary = panelSpectrogram.getWidth();
-			intSpectrogramHeightTemporary = panelSpectrogram.getHeight();
-			
         } catch(Exception e) {
         	e.printStackTrace();
         }
@@ -809,7 +800,8 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 	 */
 	private JMenuBar createMenuBar() {
 		JMenuBar menuBar = new JMenuBar();
-	 		
+		menuBar.add(Box.createHorizontalStrut(7));
+		
 		// Menu File
 		{
 	 		JMenu menuFile = new JMenu(rsBundle.getString("menu_file"));
@@ -818,7 +810,7 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 	 		JMenuItem menuFileNewLibrary = new JMenuItem(rsBundle.getString("menu_file_new_audio_library"));
 	 		menuFileNewLibrary.addActionListener(new ActionListener() {
 	 			public void actionPerformed(ActionEvent event) {
-	 				createNewLibrary();
+	 				createAudioLibrary();
 	 			}
 	        });
 	 		
@@ -882,53 +874,185 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 	 		menuFile.add(menuFileExit);
 		}
 		
+		menuBar.add(Box.createHorizontalStrut(7));
+		
 		// Menu Exibição
 		{
 			JMenu menuView = new JMenu(rsBundle.getString("menu_view"));
 			
 			// Full Waveform
-			menuViewFullWaveform = new JCheckBoxMenuItem(rsBundle.getString("menu_view_full_waveform"));
-			menuViewFullWaveform.setSelected(false);
+			JCheckBoxMenuItem menuViewFullWaveform = new JCheckBoxMenuItem(rsBundle.getString("menu_view_full_waveform"));
+			menuViewFullWaveform.setSelected(WasisParameters.getInstance().getFullWaveform());
 			menuViewFullWaveform.addActionListener(new ActionListener() {
 	 			public void actionPerformed(ActionEvent event) {
 	 				if (objWaveformGraphicPanel != null) {
 		 				if (menuViewFullWaveform.isSelected()) {
+		 					WasisParameters.getInstance().setFullWaveform(true);
 		 					objWaveformGraphicPanel.setViewFullWaveform(true);
 		 				} else {
+		 					WasisParameters.getInstance().setFullWaveform(false);
 		 					objWaveformGraphicPanel.setViewFullWaveform(false);
 		 				}
 	 				}
 	 				
-	 				checkWaveformVisualization(ZOOM_UNKNOWN);
+	 				processWaveformVisualization();
+	            }
+	        });
+			
+			// Spectrogram Color Display
+			JMenu menuSpectrogramColorDisplay = new JMenu(rsBundle.getString("menu_view_spectrogram_color_display"));
+			
+			// Grayscale
+	 		JMenuItem menuSpectrogramColorDisplayGrayscale = new JMenuItem(rsBundle.getString("menu_view_spectrogram_color_display_grayscale"), new ImageIcon("res/images/spectrogram/grayscale.png"));
+	 		menuSpectrogramColorDisplayGrayscale.addActionListener(new ActionListener() {
+	 			public void actionPerformed(ActionEvent event) {
+	 				if (objAudioWav != null) {
+	 					if (!WasisParameters.getInstance().getSpectrogramColorDisplay().equals(SpectrogramColorDisplay.SPECTROGRAM_GRAYSCALE)) {
+	 						processSpectrogramColorDisplay(SpectrogramColorDisplay.SPECTROGRAM_GRAYSCALE);
+	 					}
+	 				}
+	            }
+	        });
+	 		
+	 		// Grayscale Reverse
+	 		JMenuItem menuSpectrogramColorDisplayGrayscaleReverse = new JMenuItem(rsBundle.getString("menu_view_spectrogram_color_display_grayscale_reverse"), new ImageIcon("res/images/spectrogram/grayscale-reverse.png"));
+	 		menuSpectrogramColorDisplayGrayscaleReverse.addActionListener(new ActionListener() {
+	 			public void actionPerformed(ActionEvent event) {
+	 				if (objAudioWav != null) {
+	 					if (!WasisParameters.getInstance().getSpectrogramColorDisplay().equals(SpectrogramColorDisplay.SPECTROGRAM_GRAYSCALE_REVERSE)) {
+	 						processSpectrogramColorDisplay(SpectrogramColorDisplay.SPECTROGRAM_GRAYSCALE_REVERSE);
+	 					}
+	 				}
+	            }
+	        });
+	 		
+	 		// Gradient 1
+	 		JMenuItem menuSpectrogramColorDisplayGradient1 = new JMenuItem(rsBundle.getString("menu_view_spectrogram_color_display_gradient_1"), new ImageIcon("res/images/spectrogram/gradient-1.png"));
+	 		menuSpectrogramColorDisplayGradient1.addActionListener(new ActionListener() {
+	 			public void actionPerformed(ActionEvent event) {
+	 				if (objAudioWav != null) {
+	 					if (!WasisParameters.getInstance().getSpectrogramColorDisplay().equals(SpectrogramColorDisplay.SPECTROGRAM_GRADIENT_1)) {
+	 						processSpectrogramColorDisplay(SpectrogramColorDisplay.SPECTROGRAM_GRADIENT_1);
+	 					}
+	 				}
+	            }
+	        });
+	 		
+	 		// Gradient 2
+	 		JMenuItem menuSpectrogramColorDisplayGradient2 = new JMenuItem(rsBundle.getString("menu_view_spectrogram_color_display_gradient_2"), new ImageIcon("res/images/spectrogram/gradient-2.png"));
+	 		menuSpectrogramColorDisplayGradient2.addActionListener(new ActionListener() {
+	 			public void actionPerformed(ActionEvent event) {
+	 				if (objAudioWav != null) {
+	 					if (!WasisParameters.getInstance().getSpectrogramColorDisplay().equals(SpectrogramColorDisplay.SPECTROGRAM_GRADIENT_2)) {
+	 						processSpectrogramColorDisplay(SpectrogramColorDisplay.SPECTROGRAM_GRADIENT_2);
+	 					}
+	 				}
+	            }
+	        });
+	 		
+	 		// Gradient 3
+	 		JMenuItem menuSpectrogramColorDisplayGradient3 = new JMenuItem(rsBundle.getString("menu_view_spectrogram_color_display_gradient_3"), new ImageIcon("res/images/spectrogram/gradient-3.png"));
+	 		menuSpectrogramColorDisplayGradient3.addActionListener(new ActionListener() {
+	 			public void actionPerformed(ActionEvent event) {
+	 				if (objAudioWav != null) {
+	 					if (!WasisParameters.getInstance().getSpectrogramColorDisplay().equals(SpectrogramColorDisplay.SPECTROGRAM_GRADIENT_3)) {
+	 						processSpectrogramColorDisplay(SpectrogramColorDisplay.SPECTROGRAM_GRADIENT_3);
+	 					}
+	 				}
+	            }
+	        });
+	 		
+	 		// Zoom In Time
+	 		JMenuItem menuZoomInTime = new JMenuItem(rsBundle.getString("zoom_in_time"));
+	 		menuZoomInTime.setAccelerator(KeyStroke.getKeyStroke(Character.valueOf('+'), Event.CTRL_MASK));
+	 		menuZoomInTime.addActionListener(new ActionListener() {
+	 			public void actionPerformed(ActionEvent event) {
+	 				processAudioZoomTimeFrequency(ZOOM_TIME, ZOOM_IN);
+	            }
+	        });
+	 		
+	 		// Zoom Out Time
+	 		JMenuItem menuZoomOutTime = new JMenuItem(rsBundle.getString("zoom_out_time"));
+	 		menuZoomOutTime.setAccelerator(KeyStroke.getKeyStroke(Character.valueOf('-'), ActionEvent.CTRL_MASK));
+	 		menuZoomOutTime.addActionListener(new ActionListener() {
+	 			public void actionPerformed(ActionEvent event) {
+	 				processAudioZoomTimeFrequency(ZOOM_TIME, ZOOM_OUT);
+	            }
+	        });
+	 		
+	 		// Zoom Reset Time
+	 		JMenuItem menuZoomResetTime = new JMenuItem(rsBundle.getString("zoom_reset_time"));
+	 		menuZoomResetTime.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_0, ActionEvent.CTRL_MASK));
+	 		menuZoomResetTime.addActionListener(new ActionListener() {
+	 			public void actionPerformed(ActionEvent event) {
+	 				processAudioZoomTimeFrequency(ZOOM_TIME, ZOOM_RESET);
+	            }
+	        });
+	 		
+	 		// Zoom In Frequency
+	 		JMenuItem menuZoomInFrequency = new JMenuItem(rsBundle.getString("zoom_in_frequency"));
+	 		menuZoomInFrequency.setAccelerator(KeyStroke.getKeyStroke(Character.valueOf('+'), Event.ALT_MASK));
+	 		menuZoomInFrequency.addActionListener(new ActionListener() {
+	 			public void actionPerformed(ActionEvent event) {
+	 				processAudioZoomTimeFrequency(ZOOM_FREQUENCY, ZOOM_IN);
+	            }
+	        });
+	 		
+	 		// Zoom Out Frequency
+	 		JMenuItem menuZoomOutFrequency = new JMenuItem(rsBundle.getString("zoom_out_frequency"));
+	 		menuZoomOutFrequency.setAccelerator(KeyStroke.getKeyStroke(Character.valueOf('-'), ActionEvent.ALT_MASK));
+	 		menuZoomOutFrequency.addActionListener(new ActionListener() {
+	 			public void actionPerformed(ActionEvent event) {
+	 				processAudioZoomTimeFrequency(ZOOM_FREQUENCY, ZOOM_OUT);
+	            }
+	        });
+	 		
+	 		// Zoom Reset Frequency
+	 		JMenuItem menuZoomResetFrequency = new JMenuItem(rsBundle.getString("zoom_reset_frequency"));
+	 		menuZoomResetFrequency.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_0, ActionEvent.ALT_MASK));
+	 		menuZoomResetFrequency.addActionListener(new ActionListener() {
+	 			public void actionPerformed(ActionEvent event) {
+	 				processAudioZoomTimeFrequency(ZOOM_FREQUENCY, ZOOM_RESET);
 	            }
 	        });
 			
 			menuBar.add(menuView);
 			menuView.add(menuViewFullWaveform);
 			menuView.addSeparator();
+			menuView.add(menuSpectrogramColorDisplay);
+			menuSpectrogramColorDisplay.add(menuSpectrogramColorDisplayGrayscale);
+			menuSpectrogramColorDisplay.add(menuSpectrogramColorDisplayGrayscaleReverse);
+			menuSpectrogramColorDisplay.add(menuSpectrogramColorDisplayGradient1);
+			menuSpectrogramColorDisplay.add(menuSpectrogramColorDisplayGradient2);
+			menuSpectrogramColorDisplay.add(menuSpectrogramColorDisplayGradient3);
+			menuView.addSeparator();
+			menuView.add(menuZoomInTime);
+			menuView.add(menuZoomOutTime);
+			menuView.add(menuZoomResetTime);
+			menuView.add(menuZoomInFrequency);
+			menuView.add(menuZoomOutFrequency);
+			menuView.add(menuZoomResetFrequency);
 		}
 		
-		// Menu Identificar
+		menuBar.add(Box.createHorizontalStrut(7));
+		
+		// Menu Identificação
 		{
-			JMenu menuIdentify = new JMenu(rsBundle.getString("menu_identify"));
+			JMenu menuIdentification = new JMenu(rsBundle.getString("menu_identification"));
 			
-			// Comparar
-	 		JMenuItem menuIdentifyCompareSounds = new JMenuItem(rsBundle.getString("menu_identify_compare_sounds"));
-	 		menuIdentifyCompareSounds.addActionListener(new ActionListener() {
+			// Força Bruta
+	 		JMenuItem menuIdentificationBruteForce = new JMenuItem(rsBundle.getString("menu_identification_brute_force"));
+	 		menuIdentificationBruteForce.addActionListener(new ActionListener() {
 	 			public void actionPerformed(ActionEvent event) {
-	 				if (strAudioFilePath != null) {
-	 					compareAudio();
-	 				}
+	 				audioClassificationBruteForce();
 	            }
 	        });
 	 		
-	 		// Comparar HMM
-	 		JMenuItem menuIdentifyCompareSoundsHMM = new JMenuItem(rsBundle.getString("menu_identify_compare_sounds_hmm"));
-	 		menuIdentifyCompareSoundsHMM.addActionListener(new ActionListener() {
+	 		// Modelo de Classe
+	 		JMenuItem menuIdentificationClassModel = new JMenuItem(rsBundle.getString("menu_identification_class_model"));
+	 		menuIdentificationClassModel.addActionListener(new ActionListener() {
 	 			public void actionPerformed(ActionEvent event) {
-	 				if (strAudioFilePath != null) {
-	 					compareAudioHMM();
-	 				}
+	 				audioClassificationClassModel();
 	            }
 	        });
 	 		
@@ -940,11 +1064,14 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 	            }
 	        });
 	 		
-	 		menuBar.add(menuIdentify);
-	 		menuIdentify.add(menuIdentifyCompareSounds);
-	 		menuIdentify.add(menuIdentifyCompareSoundsHMM);
-	 		menuIdentify.add(menuClassifierModelBuilder);
+	 		menuBar.add(menuIdentification);
+	 		menuIdentification.add(menuIdentificationBruteForce);
+	 		menuIdentification.add(menuIdentificationClassModel);
+	 		menuIdentification.addSeparator();
+	 		menuIdentification.add(menuClassifierModelBuilder);
 		}
+		
+		menuBar.add(Box.createHorizontalStrut(7));
 		
 		// Menu Atualizar
 		{
@@ -973,6 +1100,8 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 	 		menuUpdate.add(menuUpdateWasis);
 		}
 		
+		menuBar.add(Box.createHorizontalStrut(7));
+		
 		// Menu Help
 		{
 	 		JMenu menuHelp = new JMenu(rsBundle.getString("menu_help"));
@@ -984,7 +1113,6 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 	 				openManual();
 	            }
 	        });
-	 		//menuHelpManual.setEnabled(false);
 	 		
 	 		// About
 	 		JMenuItem menuHelpAbout = new JMenuItem(rsBundle.getString("menu_help_about"));
@@ -1004,43 +1132,59 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 	}
 	
 	/**
+	 * Cria uma nova biblioteca de áudio.
+	 */
+	private void createAudioLibrary() {
+		// Verifica se tem arquivos de áudio abertos de alguma biblioteca não gravada
+		if (objAudioLibraryController.getAudioLibrary().getIdAudioLibrary() == 0) {
+			if (objAudioLibraryController.getListModelAudioLibrary().getSize() > 0) {
+				int intDialogResult = WasisMessageBox.showConfirmDialog(rsBundle.getString("audio_library_create_while_not_saved"), WasisMessageBox.YES_NO_OPTION);
+				
+				// Deleta todo o conteúdo existente na biblioteca
+				if (intDialogResult == WasisMessageBox.YES_OPTION) {
+					objAudioLibraryController.clearAudioLibrary();
+					resetScreenValues();	
+				}
+			}
+		} else {
+			if (objAudioLibraryController.getListModelAudioLibrary().getSize() > 0) {
+				int intDialogResult = WasisMessageBox.showConfirmDialog(rsBundle.getString("audio_library_delete_all_content"), WasisMessageBox.YES_NO_OPTION);
+				
+				// Deleta todo o conteúdo existente na biblioteca
+				if (intDialogResult == WasisMessageBox.YES_OPTION) {
+					objAudioLibraryController.clearAudioLibrary();
+					resetScreenValues();
+				}
+			}
+		}
+	}
+	
+	/**
 	 * Abre uma biblioteca de áudio existente no banco de dados.
 	 */
 	private void openAudioLibrary() {
-		OpenAudioLibrary objOpenAudioLibrary = new OpenAudioLibrary(objAudioLibrary);
-		objOpenAudioLibrary.showScreen();
+		boolean blnSaveAudioLibrary = false;
 		
-		if (objAudioLibrary.getId() != 0) {
-			resetScreenValues();
-		}
-	}
-
-	/**
-	 * Cria uma nova biblioteca de áudio.
-	 */
-	private void createNewLibrary() {
-		AudioLibrary objAudioLibraryTemporary = null;
-		
-		// Se alguma biblioteca esteja carregada no momento,
-		// eu guardo ela na memória para o caso do usuário cancela a criação de uma nova
-		if (objAudioLibrary.getId() != 0) {
-			objAudioLibraryTemporary = objAudioLibrary;
-			
-			objAudioLibrary.resetValues();
+		// Verifica se tem arquivos de áudio abertos de alguma biblioteca não gravada
+		if (objAudioLibraryController.getAudioLibrary().getIdAudioLibrary() == 0) {
+			if (objAudioLibraryController.getListModelAudioLibrary().getSize() > 0) {
+				int intDialogResult = WasisMessageBox.showConfirmDialog(rsBundle.getString("audio_library_open_while_not_saved"), WasisMessageBox.YES_NO_OPTION);
+				
+				// Abre a tela para a gravação da nova biblioteca de áudio
+				if (intDialogResult == WasisMessageBox.YES_OPTION) {
+					blnSaveAudioLibrary = true;
+					
+					saveAudioLibrary();
+				}
+			}
 		}
 		
-		SaveAudioLibrary objSaveAudioLibrary = new SaveAudioLibrary(objAudioLibrary);
-		objSaveAudioLibrary.showScreen();
-		
-		// Caso a nova biblioteca de áudio tenha sido criada
-		if (objAudioLibrary.getId() != 0) {
-			objAudioLibrary.clearAudioLibrary();
-			resetScreenValues();
+		if (!blnSaveAudioLibrary) {
+			ScreenOpenAudioLibrary objScreenOpenAudioLibrary = new ScreenOpenAudioLibrary(objAudioLibraryController);
+			objScreenOpenAudioLibrary.showScreen();
 			
-		// Caso não tenha sido criada (ou algum erro ocorreu ou foi cancelada a criação)
-		} else {
-			if (objAudioLibraryTemporary != null) {
-				objAudioLibrary = objAudioLibraryTemporary;
+			if (objAudioLibraryController.getAudioLibrary().getIdAudioLibrary() != 0) {
+				resetScreenValues();
 			}
 		}
 	}
@@ -1049,16 +1193,14 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 	 * Salva dados da biblioteca de áudio.
 	 */
 	private void saveAudioLibrary() {
-		SaveAudioLibrary objSaveAudioLibrary = new SaveAudioLibrary(objAudioLibrary);
-		objSaveAudioLibrary.showScreen();
+		ScreenSaveAudioLibrary objScreenSaveAudioLibrary = new ScreenSaveAudioLibrary(objAudioLibraryController);
+		objScreenSaveAudioLibrary.showScreen();
 	}
 
     /**
-     * Implementa um <i>FocusListener</i> responsável pela
-     * atualização dos parâmetros de FFT quando solicitado.
+     * Implementa um <i>FocusListener</i> responsável pela atualização dos parâmetros de FFT quando solicitado.
      */
     private class UpdateFFTParameters implements FocusListener {
-    	
 		@Override
 		public void focusGained(FocusEvent event) {
 			
@@ -1069,44 +1211,41 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 			int intFFTSamples = Integer.parseInt(cmbFFTSamples.getValue().toString());
 			int intFFTOverlap = (int) txtFFTOverlap.getValue();
 			String strFFTWindow = (String) cmbFFTWindow.getValue().toString();
-
-			// Só realiza o recarregamento do áudio se o valor das amostras, valor do overlap ou função de janelamento foram alterados
-			if (objAudioWav != null && strAudioFilePath != null) {
-				if (intFFTSamples != FFTParameters.getInstance().getFFTSampleSize() || intFFTOverlap != FFTParameters.getInstance().getFFTOverlapFactor() || !strFFTWindow.equals(FFTParameters.getInstance().getFFTWindowFunction())) {
-					FFTParameters.getInstance().setFFTSampleSize(intFFTSamples);
-		            FFTParameters.getInstance().setFFTOverlapFactor(intFFTOverlap);
-		            FFTParameters.getInstance().setFFTWindowFunction(strFFTWindow);
-					
-					reloadAudio(RELOAD_PARAMETERS, ZOOM_UNKNOWN);
+			
+			if (intFFTOverlap >= 100) {
+				txtFFTOverlap.setValue(FFTParameters.getInstance().getFFTOverlapFactor());
+				WasisMessageBox.showMessageDialog(rsBundle.getString("tool_bar_fft_overlap_invalid_value"), WasisMessageBox.WARNING_MESSAGE);
+				
+			} else {
+				// Só realiza o recarregamento do áudio se o valor das amostras, valor do overlap ou função de janelamento foram alterados
+				if (objAudioWav != null) {
+					if (intFFTSamples != FFTParameters.getInstance().getFFTSampleSize() || intFFTOverlap != FFTParameters.getInstance().getFFTOverlapFactor() || !strFFTWindow.equals(FFTParameters.getInstance().getFFTWindowFunction())) {
+						FFTParameters.getInstance().setFFTSampleSize(intFFTSamples);
+			            FFTParameters.getInstance().setFFTOverlapFactor(intFFTOverlap);
+			            FFTParameters.getInstance().setFFTWindowFunction(strFFTWindow);
+						
+			            processAudio();
+					}
 				}
 			}
 		}
     }
     
     /**
-     * Atualiza o parâmetros de FFT. <br>
-     * Caso o espectrograma já esteja sendo visualizado na tela,
-     * é novamente feita a renderização do espectrograma.
+     * Caso o espectrograma já esteja sendo visualizado na tela, é feita novamente a renderização.
      */
-    private void processAudioFFTParameters() {
-    	FFTParameters.getInstance().setFFTSampleSize(Integer.parseInt(cmbFFTSamples.getValue().toString()));
-    	FFTParameters.getInstance().setFFTOverlapFactor(Integer.parseInt(txtFFTOverlap.getValue().toString()));
-		FFTParameters.getInstance().setFFTWindowFunction((String) cmbFFTWindow.getValue().toString());
-		
-    	final WasisDialogLoadingData objWasisDialogLoadingData = new WasisDialogLoadingData(rsBundle.getString("message_loading_audio_file"));
+    private void processAudio() {
+    	final WasisDialogLoadingData objWasisDialogLoadingAudioFile = new WasisDialogLoadingData(rsBundle.getString("message_loading_audio_file"));
 		
 		SwingWorker<Void, Void> swingWorkerRenderSpectrogram = new SwingWorker<Void, Void>() {
 			@Override
 			protected Void doInBackground() throws Exception {
 				try {
-					objSpectrogram.setPanelWidth(objSpectrogramGraphicPanel.getPanelWidth());
-					objSpectrogram.setPanelHeight(objSpectrogramGraphicPanel.getPanelHeight());
-					
 					// Mostra uma caixa de diálogo para o usuário perceber que o carregamento do arquivo está sendo feito
 					SwingUtilities.invokeLater(new Runnable() {
 						@Override
 						public void run() {
-							objWasisDialogLoadingData.showScreen();
+							objWasisDialogLoadingAudioFile.showScreen();
 						}
 					});
 					
@@ -1114,7 +1253,7 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 
 					objSpectrogramGraphicPanel.repaint();
 
-					objWasisDialogLoadingData.disableScreen();
+					objWasisDialogLoadingAudioFile.disableScreen();
 
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -1178,7 +1317,7 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 				        		}
 								
 								if (intInitialTime != intInitialTimeView && intFinalTime != intFinalTimeView) {
-									reloadAudio(RELOAD_SCROLL_TIME_SELECTION, intInitialTime, intFinalTime, intInitialFrequencyView, intFinalFrequencyView);
+									processAudioByTime(intInitialTime, intFinalTime);
 								}
 							
 							// Em caso de uma imagem temporária de tamanho grande
@@ -1200,8 +1339,8 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 									
 									// A mudança da scrollbar foi feita arrastando o cursor
 									if (blnScrollDragged) {
-										reloadAudio(RELOAD_SCROLL_TIME_SELECTION, intInitialTime, intFinalTime, intInitialFrequencyView, intFinalFrequencyView);
-		
+										processAudioByTime(intInitialTime, intFinalTime);
+										
 										blnScrollDragged = false;
 										scrollBarHorizontalVisualization.allowSetValue(true);
 										
@@ -1225,7 +1364,7 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 										
 										intFinalTime = (int) (intInitialTime + SCROLL_LENGTH);
 		
-										reloadAudio(RELOAD_SCROLL_TIME_SELECTION, intInitialTime, intFinalTime, intInitialFrequencyView, intFinalFrequencyView);
+										processAudioByTime(intInitialTime, intFinalTime);
 										
 										scrollBarHorizontalVisualization.allowSetValue(false);
 									}
@@ -1246,8 +1385,7 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
     }
     
     /**
-     * Atualiza a visualização da barra de scroll
-     * vertical do espectrograma (eixo das frequências).
+     * Atualiza a visualização da barra de scroll vertical do espectrograma (eixo das frequências).
      */
     private void updateVerticalScrollBar() {
     	if (objAudioWav != null && objSpectrogram != null && blnDrawScrollbarVertical) {
@@ -1289,7 +1427,7 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 						int intInitialFrequency = intFinalFrequency - SCROLL_LENGTH;
 
 						if (intInitialFrequency != intInitialFrequencyView && intFinalFrequency != intFinalFrequencyView) {
-							reloadAudio(RELOAD_SCROLL_FREQUENCY_SELECTION, intInitialTimeView, intFinalTimeView, intInitialFrequency, intFinalFrequency);
+							processAudioByFrequency(intInitialFrequency, intFinalFrequency);
 						}
 					}
 				});
@@ -1308,16 +1446,13 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
      * @param intInitialTime - Tempo inicial a ser processado
      * @param intFinalTime   - Tempo final a ser processado
      */
-    private void processAudioByTime(final int intInitialTime, final int intFinalTime) {
+    private void processAudioByTime(int intInitialTime, int intFinalTime) {
     	final WasisDialogLoadingData objWasisDialogLoadingData = new WasisDialogLoadingData(rsBundle.getString("message_loading_audio_file"));
 		
 		SwingWorker<Void, Void> swingWorkerRenderSpectrogram = new SwingWorker<Void, Void>() {
 			@Override
 			protected Void doInBackground() throws Exception {
 				try {
-			    	objSpectrogram.setPanelWidth(objSpectrogramGraphicPanel.getPanelWidth());
-					objSpectrogram.setPanelHeight(objSpectrogramGraphicPanel.getPanelHeight());
-					
 					objSpectrogram.reloadSpectrogramByTimeSelection(intInitialTime, intFinalTime);
 					
 					// Verifica se é necessário renderizar novamente o espectrograma
@@ -1355,61 +1490,79 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
      * @param intFinalFrequency   - Frequência final a ser processada
      */
     private void processAudioByFrequency(int intInitialFrequency, int intFinalFrequency) {
-    	objSpectrogram.setPanelWidth(objSpectrogramGraphicPanel.getPanelWidth());
-		objSpectrogram.setPanelHeight(objSpectrogramGraphicPanel.getPanelHeight());
-		
-		objSpectrogram.reloadSpectrogramByFrequencySelection(intInitialFrequency, intFinalFrequency);
-		
-		objSpectrogramGraphicPanel.repaint();
+    	if (objSpectrogram != null) {
+			objSpectrogram.reloadSpectrogramByFrequencySelection(intInitialFrequency, intFinalFrequency);
+			objSpectrogramGraphicPanel.repaint();
+    	}
     }
     
     /**
-     * Executa o zoom no eixo do tempo.
+     * Executa o zoom no eixo do tempo/frequência.
      * 
-     * @param intTypeZoom - Tipo de zoom <br>
-     * <i>1 = Zoom In</i> <br>
-     * <i>2 = Zoom Out</i> <br>
-     * <i>3 = Zoom Reset</i>
+     * @param intAxis - Eixo<br>
+     * <i>0 = Time</i> <br>
+     * <i>1 = Frequency</i>
+     * 
+     * @param intTypeZoom - Tipo de zoom<br>
+     * <i>101 = Zoom In</i> <br>
+     * <i>102 = Zoom Out</i> <br>
+     * <i>103 = Zoom Reset</i>
      */
-    private void processAudioZoomTime(final int intTypeZoom) {
-    	blnDrawScrollbarHorizontal = true;
-    	
-		final WasisDialogLoadingData objWasisDialogLoadingData = new WasisDialogLoadingData(rsBundle.getString("message_loading_audio_file"));
+    private void processAudioZoomTimeFrequency(int intAxis, int intTypeZoom) {
+		final WasisDialogLoadingData objWasisDialogLoadingAudioFile = new WasisDialogLoadingData(rsBundle.getString("message_loading_audio_file"));
 		
 		SwingWorker<Void, Void> swingWorkerRenderSpectrogram = new SwingWorker<Void, Void>() {
 			@Override
 			protected Void doInBackground() throws Exception {
 				try {
-					objSpectrogram.setPanelWidth(objSpectrogramGraphicPanel.getPanelWidth());
-					objSpectrogram.setPanelHeight(objSpectrogramGraphicPanel.getPanelHeight());
-					
-					if (intTypeZoom == ZOOM_IN) {
-						objSpectrogram.setTimeZoomIn();
-					} else if (intTypeZoom == ZOOM_OUT) {
-						objSpectrogram.setTimeZoomOut();
-					} else if (intTypeZoom == ZOOM_RESET) {
-						objSpectrogram.setTimeZoomReset();
-					}
-					
-					// Verifica se é necessário renderizar novamente o espectrograma
-					if (objSpectrogram.getAllowRenderSpectrogram()) {
-						// Mostra uma caixa de diálogo para o usuário perceber que o carregamento do arquivo está sendo feito
-						SwingUtilities.invokeLater(new Runnable() {
-							@Override
-							public void run() {
-								objWasisDialogLoadingData.showScreen();
+					if (objSpectrogram != null) {
+						// Eixo tempo
+						if (intAxis == ZOOM_TIME) {
+							blnDrawScrollbarHorizontal = true;
+							
+							if (intTypeZoom == ZOOM_IN) {
+								objSpectrogram.setTimeZoomIn();
+							} else if (intTypeZoom == ZOOM_OUT) {
+								objSpectrogram.setTimeZoomOut();
+							} else if (intTypeZoom == ZOOM_RESET) {
+								objSpectrogram.setTimeZoomReset();
 							}
-						});
+							
+						// Eixo frequência
+						} else if (intAxis == ZOOM_FREQUENCY) {
+							blnDrawScrollbarVertical = true;
+					    	
+							if (intTypeZoom == ZOOM_IN) {
+								objSpectrogram.setFrequencyZoomIn();
+							} else if (intTypeZoom == ZOOM_OUT) {
+								objSpectrogram.setFrequencyZoomOut();
+							} else if (intTypeZoom == ZOOM_RESET) {
+								objSpectrogram.setFrequencyZoomReset();
+							}
+						}
 						
-						objSpectrogram.renderSpectrogram();
+						// Verifica se é necessário renderizar novamente o espectrograma
+						if (objSpectrogram.getAllowRenderSpectrogram()) {
+							// Mostra uma caixa de diálogo para o usuário perceber que o carregamento do arquivo está sendo feito
+							SwingUtilities.invokeLater(new Runnable() {
+								@Override
+								public void run() {
+									objWasisDialogLoadingAudioFile.showScreen();
+								}
+							});
+							
+							objSpectrogram.renderSpectrogram();
+						}
+						
+						if (intAxis == ZOOM_TIME) {
+							processWaveformVisualization();
+						}
+						
+						objSpectrogramGraphicPanel.repaint();
+						
+						objWasisDialogLoadingAudioFile.disableScreen();
 					}
 					
-					checkWaveformVisualization(intTypeZoom);
-
-					objSpectrogramGraphicPanel.repaint();
-					
-					objWasisDialogLoadingData.disableScreen();
-
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -1422,114 +1575,85 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
     }
     
     /**
-     * Executa o zoom no eixo da frequência.
+     * Processa o espectrograma com um novo mapa de cores.
      * 
-     * @param intTypeZoom - Tipo de zoom <br>
-     * <i>1 = Zoom In</i> <br>
-     * <i>2 = Zoom Out</i> <br>
-     * <i>3 = Zoom Reset</i> <br>
+     * @param strSpectrogramColorDisplay
      */
-    private void processAudioZoomFrequency(int intTypeZoom) {
-    	blnDrawScrollbarVertical = true;
-    	
-    	objSpectrogram.setPanelWidth(objSpectrogramGraphicPanel.getPanelWidth());
-		objSpectrogram.setPanelHeight(objSpectrogramGraphicPanel.getPanelHeight());
-		
-		if (intTypeZoom == ZOOM_IN) {
-			objSpectrogram.setFrequencyZoomIn();
-		} else if (intTypeZoom == ZOOM_OUT) {
-			objSpectrogram.setFrequencyZoomOut();
-		} else if (intTypeZoom == ZOOM_RESET) {
-			objSpectrogram.setFrequencyZoomReset();
-		}
-		
-		objSpectrogramGraphicPanel.repaint();
+    private void processSpectrogramColorDisplay(String strSpectrogramColorDisplay) {
+    	WasisParameters.getInstance().setSpectrogramColorDisplay(strSpectrogramColorDisplay);
+
+		lblLabelSelection.repaint();
+			
+		processAudio();
     }
     
     /**
 	 * Verifica o status da visualização do Waveform.
-	 * 
-	 * @param intTypeZoom - Tipo de zoom <br>
-     * <i>1 = Zoom In</i> <br>
-     * <i>2 = Zoom Out</i> <br>
-     * <i>3 = Zoom Reset</i> <br>
 	 */
-	private void checkWaveformVisualization(int intTypeZoom) {
+	private void processWaveformVisualization() {
 		if (objWaveform != null && objSpectrogram != null) {
-			objWaveform.setPanelWidth(objWaveformGraphicPanel.getPanelWidth());
-			objWaveform.setPanelHeight(objWaveformGraphicPanel.getPanelHeight());
-			
 			objWaveform.setInitialTimeSpectrogram(objSpectrogram.getInitialTime());
 			objWaveform.setFinalTimeSpectrogram(objSpectrogram.getFinalTime());
 			
-			if (intTypeZoom == ZOOM_RESET) {
+			// Visualização completa do waveform (todo o áudio)
+			if (objWaveformGraphicPanel.getViewFullWaveform()) {
 				objWaveform.setTimeZoomReset();
-				objWaveformGraphicPanel.setManualSelection(false);
-			
-			} else {
+				objWaveformGraphicPanel.setAudioSegment(true, objSpectrogram.getInitialTime(), objSpectrogram.getFinalTime());
 				
-				// Visualização completa do waveform (todo o áudio)
-				if (objWaveformGraphicPanel.getViewFullWaveform()) {
-					objWaveform.setTimeZoomReset();
-					objWaveformGraphicPanel.setSelectionBox(true, objSpectrogram.getInitialTime(), objSpectrogram.getFinalTime());
+				// Linha de seleção
+				if (objWaveformGraphicPanel.getDrawSelectionLine() && objSpectrogramGraphicPanel.getDrawSelectionLine()) {
+					objSpectrogramGraphicPanel.setAudioSegment(false, 0, 0);
 					
-					// Linha de seleção
-					if (objWaveformGraphicPanel.getDrawSelectionLine() && objSpectrogramGraphicPanel.getDrawSelectionLine()) {
-						objSpectrogramGraphicPanel.setSelectionBox(false, 0, 0);
-
-						// A linha de seleção acompanha a parte que está sendo visualizada do áudio
-						if (objSpectrogram.getInitialTime() >= objSpectrogramGraphicPanel.getTimeSelectionLine() || objSpectrogram.getFinalTime() <= objSpectrogramGraphicPanel.getTimeSelectionLine() || objSpectrogramGraphicPanel.getChangeTimeSelectionLine()) {
-							objWaveformGraphicPanel.setSelectionLine(true, objSpectrogram.getInitialTime());
-							objSpectrogramGraphicPanel.setSelectionLine(true, objSpectrogram.getInitialTime());
-							objSpectrogramGraphicPanel.setChangeTimeSelectionLine(true);
-							
-							intCurrentTime = objSpectrogram.getInitialTime();
-							lblCurrentTime.setText(ClockTransformations.millisecondsIntoDigitalFormat(intCurrentTime));
-						}
-					
-					// Caixa de seleção
+					// A linha de seleção acompanha a parte que está sendo visualizada do áudio
+					if (objSpectrogram.getInitialTime() >= objSpectrogramGraphicPanel.getTimeSelectionLine() || objSpectrogram.getFinalTime() <= objSpectrogramGraphicPanel.getTimeSelectionLine() || objSpectrogramGraphicPanel.getChangeTimeSelectionLine()) {
+						objWaveformGraphicPanel.setSelectionLine(true, objSpectrogram.getInitialTime());
+						objSpectrogramGraphicPanel.setSelectionLine(true, objSpectrogram.getInitialTime());
+						objSpectrogramGraphicPanel.setChangeTimeSelectionLine(true);
+						
+						intCurrentTime = objSpectrogram.getInitialTime();
+						lblCurrentTime.setText(ClockTransformations.millisecondsIntoDigitalFormat(intCurrentTime));
+					}
+				
+				// Caixa de seleção / Segmento de áudio
+				} else {
+					// Segmento de áudio gerado no espectrograma
+					if (objSpectrogramGraphicPanel.getDrawAudioSegment()) {
+						objWaveformGraphicPanel.setSelectionLine(false, 0);
+						
+					// Caso haja alguma seleção anteriormente gerada no waveform, ela é descartada
 					} else {
-
-						// Caixa de seleção gerada no espectrograma
-						if (objSpectrogramGraphicPanel.getDrawSelectionBox()) {
-							objWaveformGraphicPanel.setSelectionLine(false, 0);
-							
-						// Caso haja alguma seleção anteriormente gerada no waveform, ela é descartada
-						} else {
-							selectedAudio(ZOOM_UNKNOWN, objSpectrogram.getInitialTime(), objSpectrogram.getInitialTime(), 0, 0);
-						}
+						selectedAudio(0, objSpectrogram.getInitialTime(), objSpectrogram.getInitialTime(), 0, 0);
+					}
+				}
+				
+			// Visualização parcial do waveform baseando-se no tempo inicial e final que está sendo exibido o espectrograma
+			} else {
+				objWaveform.setTimeZoom(objSpectrogram.getInitialTime(), objSpectrogram.getFinalTime());
+				
+				// Linha de seleção
+				if (objWaveformGraphicPanel.getDrawSelectionLine() && objSpectrogramGraphicPanel.getDrawSelectionLine()) {
+					objWaveformGraphicPanel.setAudioSegment(false, 0, 0);
+					objSpectrogramGraphicPanel.setAudioSegment(false, 0, 0);
+					
+					// A linha de seleção acompanha a parte que está sendo visualizada do áudio
+					if (objSpectrogram.getInitialTime() >= objSpectrogramGraphicPanel.getTimeSelectionLine() || objSpectrogram.getFinalTime() <= objSpectrogramGraphicPanel.getTimeSelectionLine() || objSpectrogramGraphicPanel.getChangeTimeSelectionLine()) {
+						objWaveformGraphicPanel.setSelectionLine(true, objSpectrogram.getInitialTime());
+						objSpectrogramGraphicPanel.setSelectionLine(true, objSpectrogram.getInitialTime());
+						objSpectrogramGraphicPanel.setChangeTimeSelectionLine(true);
+						
+						intCurrentTime = objSpectrogram.getInitialTime();
+						lblCurrentTime.setText(ClockTransformations.millisecondsIntoDigitalFormat(intCurrentTime));
 					}
 					
-				// Visualização parcial do waveform baseando-se no tempo inicial e final que está sendo exibido o espectrograma
+				// Caixa de seleção
 				} else {
-					objWaveform.setTimeZoom(objSpectrogram.getInitialTime(), objSpectrogram.getFinalTime());
-					
-					// Linha de seleção
-					if (objWaveformGraphicPanel.getDrawSelectionLine() && objSpectrogramGraphicPanel.getDrawSelectionLine()) {
-						objWaveformGraphicPanel.setSelectionBox(false, 0, 0);
-						objSpectrogramGraphicPanel.setSelectionBox(false, 0, 0);
+					// Caixa de seleção gerada no espectrograma
+					if (objSpectrogramGraphicPanel.getDrawAudioSegment()) {
+						objWaveformGraphicPanel.setAudioSegment(false, 0, 0);
 						
-						// A linha de seleção acompanha a parte que está sendo visualizada do áudio
-						if (objSpectrogram.getInitialTime() >= objSpectrogramGraphicPanel.getTimeSelectionLine() || objSpectrogram.getFinalTime() <= objSpectrogramGraphicPanel.getTimeSelectionLine() || objSpectrogramGraphicPanel.getChangeTimeSelectionLine()) {
-							objWaveformGraphicPanel.setSelectionLine(true, objSpectrogram.getInitialTime());
-							objSpectrogramGraphicPanel.setSelectionLine(true, objSpectrogram.getInitialTime());
-							objSpectrogramGraphicPanel.setChangeTimeSelectionLine(true);
-							
-							intCurrentTime = objSpectrogram.getInitialTime();
-							lblCurrentTime.setText(ClockTransformations.millisecondsIntoDigitalFormat(intCurrentTime));
-						}
-						
-					// Caixa de seleção
-					} else {
-
-						// Caixa de seleção gerada no espectrograma
-						if (objSpectrogramGraphicPanel.getDrawSelectionBox()) {
-							objWaveformGraphicPanel.setSelectionBox(false, 0, 0);
-							
-						// Caixa de seleção gerada no waveform
-						} else if (objWaveformGraphicPanel.getDrawSelectionBox()) {
-							objWaveformGraphicPanel.setSelectionBox(true, intInitialTimeSelection, intFinalTimeSelection);
-						}
+					// Caixa de seleção gerada no waveform
+					} else if (objWaveformGraphicPanel.getDrawAudioSegment()) {
+						objWaveformGraphicPanel.setAudioSegment(true, intInitialTimeSelection, intFinalTimeSelection);
 					}
 				}
 				
@@ -1538,521 +1662,11 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 			}
 		}
 	}
-    
-    /**
-	 * Cria um <i>ComponentAdapter</i> que será responsável 
-     * pela resposta de uma alteração no tamanho do espectrograma. <br>
-     * Será utilizado para recarregar o waveform/espectrograma
-     * quando houver alteração no tamanho do painel de visualização de áudio.
-	 */
-    private class ResizeSpectrogramAdapter extends ComponentAdapter {
-		@Override
-        public void componentResized(ComponentEvent event) {
-			if (panelSpectrogram.getWidth() != intSpectrogramWidthTemporary || panelSpectrogram.getHeight() != intSpectrogramHeightTemporary) {
-				if (objSpectrogramGraphicPanel != null) {
-					objSpectrogramGraphicPanel.setPanelWidth(panelSpectrogram.getWidth() - panelSpectrogram.getSizeBorders());
-					objSpectrogramGraphicPanel.setPanelHeight(panelSpectrogram.getHeight() - panelSpectrogram.getSizeBorders());
-					objSpectrogramGraphicPanel.repaint();
-					
-					objWaveformGraphicPanel.setPanelWidth(panelWaveform.getWidth() - panelWaveform.getSizeBorders());
-					objWaveformGraphicPanel.setPanelHeight(panelWaveform.getHeight() - panelWaveform.getSizeBorders());
-					objWaveformGraphicPanel.repaint();
-				}
-				
-				intSpectrogramWidthTemporary = panelSpectrogram.getWidth();
-				intSpectrogramHeightTemporary = panelSpectrogram.getHeight();
-			}
-        }
-    }
-
-    /**
-	 * Abre o arquivo de áudio.
-	 */
-	private void openAudioFile() {
-		AudioFileFilter audioFileFilter = new AudioFileFilter();
-		JFileChooser fileChooser = new JFileChooser(WasisParameters.getInstance().getLastFilePath());
-		fileChooser.setDialogTitle(rsBundle.getString("audio_file_chooser_title"));
-		fileChooser.setMultiSelectionEnabled(true);
-		fileChooser.setAcceptAllFileFilterUsed(false);
-		fileChooser.addChoosableFileFilter(audioFileFilter);
-		fileAudioList = null;
-		
-		int intReturn = fileChooser.showOpenDialog(Wasis.this);
-		
-		if (intReturn == JFileChooser.APPROVE_OPTION) {
-			// Armazena todos os arquivo de áudio selecionados em uma lista
-			fileAudioList = fileChooser.getSelectedFiles();
-			Arrays.sort(fileAudioList);
- 			
-			// Apenas o primeiro arquivo da lista de áudio selecionada será o processado
-			// Mas todos os arquivo de áudio serão adicionados na biblioteca de áudio posteriormente
-			strAudioFilePath = fileAudioList[0].getAbsolutePath();
-			
-			// Altera o caminho do último arquivo de áudio carregado no sistema
-         	WasisParameters.getInstance().setLastFilePath(strAudioFilePath);
-            
-        	// Parâmetros de FFT
-            int intFFTSampleSize = Integer.parseInt((String) cmbFFTSamples.getValue());
-            FFTParameters.getInstance().setFFTSampleSize(intFFTSampleSize);
-             
-            int intFFTOverlapFactor = (int) txtFFTOverlap.getValue();
-            FFTParameters.getInstance().setFFTOverlapFactor(intFFTOverlapFactor);
-             
-            String strFFTWindowFunction = (String) cmbFFTWindow.getValue();
-            FFTParameters.getInstance().setFFTWindowFunction(strFFTWindowFunction);
-            
-            // Carrega o arquivo de áudio
-            loadAudio();
-		}
-	}
-	
-	/**
-	 * Salva os dados das seleções do arquivo de áudio.
-	 */
-	private void saveAudioFile() {
-		if (objAudioWav != null && strAudioFilePath != null) {
-			String strUser = WasisParameters.getInstance().getWasisUser();
-			
-			// Caso o usuário seja da FNJV, os dados serão preenchidos através dos registros já adicionados no banco de dados
-			if (strUser.equals("wasis_fnjv")) {
-				ScreenSaveAudioData objSaveAudioData = new ScreenSaveAudioData(objSpectrogramGraphicPanel);
-				objSaveAudioData.showScreen();
-			} else {
-				ScreenSaveAudio objSaveAudio = new ScreenSaveAudio(objSpectrogramGraphicPanel);
-				objSaveAudio.showScreen();
-			}
-		}
-	}
-	
-	/**
-	 * Fecha o arquivo de áudio.
-	 */
-	private void closeAudioFile() {
-		if (objAudioWav != null && strAudioFilePath != null) {
-			resetScreenValues();
-			objAudioLibrary.closeOpenedAudioFile();
-		}
-	}
-
-	/**
-	 * Carrega arquivo de áudio.
-	 */
-	private void loadAudio() {
-		final WasisDialogLoadingData objWasisDialogLoadingData = new WasisDialogLoadingData(rsBundle.getString("message_loading_audio_file"));
-		
-		SwingWorker<Void, Void> swingWorkerLoadAudio = new SwingWorker<Void, Void>() {
-			@Override
-			protected Void doInBackground() throws Exception {
-				try {
-					// Fecha o objeto do áudio anterior, se houver
-					if (objAudioWav != null && strAudioFilePath != null) {
-						objAudioWav.closeAudio();
-						
-						// Para o player, caso esteja tocando
-						if (objPlayer != null) {
-							objPlayer.stopAudio();
-						}
-						
-						// Fecha o objeto do espectrograma anterior, se houver
-						if (objSpectrogram != null) {
-							objSpectrogram.closeSpectrogram();
-						}
-					}
-					
-					// Carrega o arquivo de áudio
-					objAudioWav = new AudioWav(strAudioFilePath);
-					objAudioWav.loadAudio();
-					
-					// Aguarda finalizar o carregamento/conversão do arquivo de áudio
-					while (!objAudioWav.getStatusLoaded() && !objAudioWav.getStatusCancelled()) {
-						Thread.sleep(25); // Dorme por um instante para não sobrecarregar a CPU
-					}
-
-					// Caso haja cancelamento na conversão do arquivo
-					if (objAudioWav.getStatusCancelled()) {
-						strAudioFilePath = null;
-						
-						objAudioLibrary.clearAudioLibraryLoadedFile();
-						
-					// Caso não haja cancelamento na conversão, continua carregando o arquivo de áudio
-					} else {
-						objWasisDialogLoadingData.showScreen();
-						
-						resetViewSelectionValues();
-						
-						objAudioLibrary.addAudioFileListToAudioLibrary(fileAudioList);
-						
-						AudioTemporary.createAudioTemporary(objAudioWav);
-						
-						loadPlayer();
-
-						// Carrega o waveform em uma nova thread
-						SwingWorker<Void, Void> swingWorkerLoadWaveform = new SwingWorker<Void, Void>() { 
-							@Override
-							protected Void doInBackground() throws Exception { 
-								loadWaveform();
-								
-								return null;
-							}
-						};
-						swingWorkerLoadWaveform.execute();
-						
-						// Carrega o espectrograma em uma nova thread
-						SwingWorker<Void, Void> swingWorkerLoadSpectrogram = new SwingWorker<Void, Void>() { 
-							@Override
-							protected Void doInBackground() throws Exception { 
-								loadSpectrogram();
-								
-								return null;
-							}
-						};
-						swingWorkerLoadSpectrogram.execute();
-
-						// Verifica se o waveform e espectrograma ainda estão em carregamento
-						while (!swingWorkerLoadWaveform.isDone() || !swingWorkerLoadSpectrogram.isDone()) {
-							Thread.sleep(50);     // Dorme por um instante para não sobrecarregar a CPU
-						}
-					}
-					
-				} catch (FileNotFoundException e) {
-					WasisMessageBox.showMessageDialog(rsBundle.getString("message_audio_file_not_found") + ". \n" +
-													  rsBundle.getString("message_audio_file_not_found_check"),
-													  WasisMessageBox.ERROR_MESSAGE);
-					
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-				
-				return null;
-			}
-			
-			@Override
-			protected void done() {
-			    try {
-					get();
-					
-					// Caso o carregamento não tenha sido finalizado ou a conversão seja cancelada, 
-	    			// todo o processo posterior é desconsiderado
-	    			if (objAudioWav.getStatusLoaded() && !objAudioWav.getStatusCancelled()) {
-	    				SwingUtilities.invokeLater(new Runnable() {
-	    					@Override
-	    					public void run() {
-	    						objWaveformGraphicPanel.revalidate();
-	    						objSpectrogramGraphicPanel.revalidate();
-
-	    						objWasisDialogLoadingData.disableScreen();
-	    					}
-	    				});
-	    			}
-	    			
-				} catch (InterruptedException e) {
-					objWasisDialogLoadingData.disableScreen();
-					WasisMessageBox.showMessageDialog(rsBundle.getString("error_loading_audio_file"), WasisMessageBox.ERROR_MESSAGE);
-				} catch (ExecutionException e) {
-					objWasisDialogLoadingData.disableScreen();
-					WasisMessageBox.showMessageDialog(rsBundle.getString("error_loading_audio_file"), WasisMessageBox.ERROR_MESSAGE);
-				}
-			}
-		};
-		
-	    swingWorkerLoadAudio.execute();
-	}
-	
-	/**
-	 * Recarrega o arquivo de áudio.
-	 * 
-	 * @param intTypeReload - Tipo de recarregamento 
-	 * @param intTypeZoom   - Tipo de zoom
-	 */
-	private void reloadAudio(final int intTypeReload, final int intTypeZoom) {
-		if (objAudioWav != null && strAudioFilePath != null) {
-			if (intTypeReload == RELOAD_ZOOM_TIME) {
-				processAudioZoomTime(intTypeZoom);
-			} else if (intTypeReload == RELOAD_ZOOM_FREQUENCY) {
-				processAudioZoomFrequency(intTypeZoom);
-			} else if (intTypeReload == RELOAD_PARAMETERS) {
-				processAudioFFTParameters();
-			}	
-		}
-	}
-	
-	/**
-	 * Recarrega o arquivo de áudio.
-	 * 
-	 * @param intTypeReload       - Tipo de recarregamento 
-	 * @param intInitialTime      - Tempo inicial que será utilizado para recarregar o áudio
-	 * @param intFinalTime        - Tempo final que será utilizado para recarregar o áudio
-	 * @param intInitialFrequency - Frequência inicial que será utilizada para recarregar o áudio
-	 * @param intFinalFrequency   - Frequência final que será utilizada para recarregar o áudio
-	 */
-	private void reloadAudio(final int intTypeReload, final int intInitialTime, final int intFinalTime, final int intInitialFrequency, final int intFinalFrequency) {
-		if (objAudioWav != null && strAudioFilePath != null) {
-			if (intTypeReload == RELOAD_WAVEFORM_SELECTION || intTypeReload == RELOAD_SCROLL_TIME_SELECTION) {
-				processAudioByTime(intInitialTime, intFinalTime);
-			} else if (intTypeReload == RELOAD_SCROLL_FREQUENCY_SELECTION) {
-				processAudioByFrequency(intInitialFrequency, intFinalFrequency);
-			}
-		}
-	}
-
-	/**
-	 * Carrega o Player.
-	 */
-	private void loadPlayer() {
-		try {
-			if (objAudioWav != null && strAudioFilePath != null) {
-				objPlayer = new Player(objAudioWav);
-				objPlayer.addPlayerListener(Wasis.this);
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-	
-	/**
-	 * Carrega o Waveform.
-	 */
-	private void loadWaveform() {
-		try {
-			if (objAudioWav != null && strAudioFilePath != null) {
-				// Remove o painel do waveform se já houver algum
-				if (panelWaveform.getComponentCount() > 0) {
-					panelWaveform.remove(0);
-				}
-				
-				resetWaveform();
-				
-				// Cria um clone do objeto 'objAudioWav' original
-				AudioWav objAudioWavWaveform = (AudioWav) objAudioWav.clone();
-				
-				objWaveform = new Waveform(objAudioWavWaveform);
-				
-				objWaveformGraphicPanel = new WaveformGraphicPanel(objWaveform);
-				objWaveformGraphicPanel.setPanelWidth(panelWaveform.getWidth() - panelWaveform.getSizeBorders());
-				objWaveformGraphicPanel.setPanelHeight(panelWaveform.getHeight() - panelWaveform.getSizeBorders());
-				objWaveformGraphicPanel.setViewFullWaveform(menuViewFullWaveform.isSelected());
-				objWaveformGraphicPanel.addWaveformListener(Wasis.this);
-				objWaveformGraphicPanel.addPlayer(objPlayer);
-		        
-		        objWaveform.setPanelWidth(objWaveformGraphicPanel.getPanelWidth());
-		        objWaveform.setPanelHeight(objWaveformGraphicPanel.getPanelHeight());
-		        objWaveform.renderWaveform();
-		        
-		        // Insere o painel do waveform no frame principal
-		        panelWaveform.add(objWaveformGraphicPanel, "cell 0 0, grow, gap 1 2 1 2");
-			}
-			
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-	
-	/**
-	 * Carrega o Espectrograma.
-	 */
-	private void loadSpectrogram() {
-		try {
-			if (objAudioWav != null && strAudioFilePath != null) {
-		    	// Remove o painel do espectrograma se já houver algum
-		    	if (panelSpectrogram.getComponentCount() > 0) {
-		    		panelSpectrogram.remove(0);
-		        }
-		    	
-		    	resetSpectrogram();
-		    	
-		    	// Cria um clone do objeto 'objAudioWav' original
-		    	AudioWav objAudioWavSpectrogram = (AudioWav) objAudioWav.clone();
-		    	
-		    	objSpectrogram = new Spectrogram(objAudioWavSpectrogram);
-		    	
-		    	objSpectrogramGraphicPanel = new SpectrogramGraphicPanel(objSpectrogram);
-		    	objSpectrogramGraphicPanel.setPanelWidth(panelSpectrogram.getWidth() - panelSpectrogram.getSizeBorders());
-		    	objSpectrogramGraphicPanel.setPanelHeight(panelSpectrogram.getHeight() - panelSpectrogram.getSizeBorders());
-		    	objSpectrogramGraphicPanel.addSpectrogramListener(Wasis.this);
-		    	objSpectrogramGraphicPanel.addPlayer(objPlayer);
-
-		    	objSpectrogram.setPanelWidth(objSpectrogramGraphicPanel.getPanelWidth());
-		    	objSpectrogram.setPanelHeight(objSpectrogramGraphicPanel.getPanelHeight());
-		    	objSpectrogram.renderSpectrogram();
-		    	
-		    	// Insere o painel do espectrograma no frame principal
-		    	panelSpectrogram.add(objSpectrogramGraphicPanel, "cell 0 0, grow, gap 1 2 1 0");
-		    	panelSpectrogram.add(scrollBarHorizontalVisualization, "cell 0 1, grow, gap 1 2 0 3");
-			}
-			
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-	
-	/**
-	 * Reseta os valores dos componentes principais da tela.
-	 */
-	private void resetScreenValues() {
-		resetAudioFile();
-		resetPlayer();
-		resetWaveform();
-		resetSpectrogram();
-		resetViewSelectionValues();
-		
-		System.gc();
-	}
-	
-	/**
-	 * Reseta arquivo de áudio.
-	 */
-	private void resetAudioFile() {
-		if (objAudioWav != null && strAudioFilePath != null) {
-			objAudioWav.closeAudio();
-			objAudioWav = null;
-			strAudioFilePath = null;
-		}
-	}
-	
-	/**
-	 * Reseta o Player.
-	 */
-	private void resetPlayer() {
-		if (objPlayer != null) {
-			objPlayer.stopAudio();
-			objPlayer.closeFile();
-			objPlayer = null;
-		}
-	}
-	
-	/**
-	 * Reseta o Waveform.
-	 */
-	private void resetWaveform() {
-		objWaveform = null;
-		
-		if (objWaveformGraphicPanel != null && objWaveformGraphicPanel.getParent() == panelWaveform) {
-			panelWaveform.remove(objWaveformGraphicPanel);
-			panelWaveform.repaint();
-		}
-		
-		objWaveformGraphicPanel = null;
-	}
-	
-	/**
-	 * Reseta as scrollbars.
-	 */
-	private void resetScrollbars() {
-		scrollBarHorizontalVisualization.setValues(0, 0, 0, 0);
-		scrollBarVerticalVisualization.setValues(0, 0, 0, 0);
-	}
-	
-	/**
-	 * Reseta o Espectrograma.
-	 */
-	private void resetSpectrogram() {
-		if (objSpectrogram != null) {
-			objSpectrogram.closeSpectrogram();
-			objSpectrogram = null;
-		}
-		
-		if (objSpectrogramGraphicPanel != null && objSpectrogramGraphicPanel.getParent() == panelSpectrogram) {
-			resetScrollbars();
-			
-			panelSpectrogram.remove(objSpectrogramGraphicPanel);
-			panelSpectrogram.repaint();
-		}
-		
-		objSpectrogramGraphicPanel = null;
-	}
-	
-	/**
-	 * Reseta os valores de visão e seleção ativa.
-	 */
-	private void resetViewSelectionValues() {
-		intCurrentTime = 0;
-		intInitialTimeSelection = 0;
-		intFinalTimeSelection = 0;
-	    intInitialTimeView = 0;
-	    intFinalTimeView = 0;
-	    lblCurrentTime.setText(ClockTransformations.millisecondsIntoDigitalFormat(intCurrentTime));
-	    lblInitialTimeSelection.setText(ClockTransformations.millisecondsIntoDigitalFormat(intInitialTimeSelection));
-	    lblFinalTimeSelection.setText(ClockTransformations.millisecondsIntoDigitalFormat(intFinalTimeSelection));
-	    lblLengthTimeSelection.setText(ClockTransformations.millisecondsIntoDigitalFormat(intFinalTimeSelection - intInitialTimeSelection));
-	    lblInitialTimeView.setText(ClockTransformations.millisecondsIntoDigitalFormat(intInitialTimeView));
-	    lblFinalTimeView.setText(ClockTransformations.millisecondsIntoDigitalFormat(intFinalTimeView));
-	    lblLengthTimeView.setText(ClockTransformations.millisecondsIntoDigitalFormat(intFinalTimeView - intInitialTimeView));
-	    lblInitialFrequencySelection.setText("0 Hz");
-	    lblFinalFrequencySelection.setText("0 Hz");
-	    lblLengthFrequencySelection.setText("0 Hz");
-	    lblInitialFrequencyView.setText("0 Hz");
-	    lblFinalFrequencyView.setText("0 Hz");
-	    lblLengthFrequencyView.setText("0 Hz");
-	    lblMousePosition.setText("");
-	}
-	
-	/**
-	 * Abre o manual do usuário (PDF) do sistema.
-	 */
-	private void openManual() {
-		if (Desktop.isDesktopSupported()) {
-		    try {
-		        File myFile = new File("res/wasis_manual.pdf");
-		        Desktop.getDesktop().open(myFile);
-		    } catch (IOException ex) {
-		        
-		    }
-		}
-	}
-	
-	/**
-	 * Abre a tela de <i>About</i> do sistema.
-	 */
-	private void openAbout() {
-		ScreenAbout objScreenAbout = new ScreenAbout();
-		objScreenAbout.showScreen();
-	}
-	
-	/**
-	 * Realiza a comparação dos áudios.
-	 */
-	private void compareAudio() {
-		if (objSpectrogram != null) {
-			try {
-				ScreenAudioComparison objAudioComparison = new ScreenAudioComparison(strAudioFilePath, objSpectrogramGraphicPanel, objAudioLibrary.getId());
-				objAudioComparison.showScreen();
-			} catch (CloneNotSupportedException e) {
-				e.printStackTrace();
-			}
-		}
-	}
-	
-	/**
-	 * Realiza a comparação dos áudios.
-	 */
-	private void compareAudioHMM() {
-		if (objSpectrogram != null) {
-			ScreenAudioComparisonHMM objAudioComparisonHMM = new ScreenAudioComparisonHMM(objSpectrogramGraphicPanel);
-			objAudioComparisonHMM.showScreen();
-		}
-	}
-	
-	/**
-	 * Realiza a comparação dos áudios.
-	 */
-	private void classifierModelBuilder() {
-		ScreenModelBuilder objScreenModelBuilder = new ScreenModelBuilder();
-		objScreenModelBuilder.showScreen();
-	}
-	
-	/**
-	 * Atualiza o banco de dados.
-	 */
-	private void updateDatabase() {
-		ScreenUpdateDatabase objUpdateDatabase = new ScreenUpdateDatabase();
-		objUpdateDatabase.showScreen();
-	}
 	
 	/**
 	 * Áudio selecionado do waveform/espectrograma.<br>
 	 * <br>
-	 * Os valores de tempo atual e visão/seleção ativa são atualizados
-	 * de acordo com os parâmetros.
+	 * Os valores de tempo atual e visão/seleção ativa são atualizados de acordo com os parâmetros.
 	 * 
 	 * @param intCurrentTime      - Posição atual do mouse no tempo (em milisegundos)
 	 * @param intInitialTime      - Tempo inicial selecionado (em milisegundos)
@@ -2060,7 +1674,7 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 	 * @param intInitialFrequency - Frequência inicial selecionada (em Hz)
 	 * @param intFinalFrequency   - Frequência final selecionada (em Hz)
 	 */
-	private void selectedAudio(final int intCurrentTime, final int intInitialTime, final int intFinalTime, final int intInitialFrequency, final int intFinalFrequency) {
+	private void selectedAudio(int intCurrentTime, int intInitialTime, int intFinalTime, int intInitialFrequency, int intFinalFrequency) {
 		// Atribui valores para o label de tempo atual
 		this.intCurrentTime = intCurrentTime;
 		this.lblCurrentTime.setText(ClockTransformations.millisecondsIntoDigitalFormat(intCurrentTime));
@@ -2093,6 +1707,435 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 		
 		this.objPlayer.setAllowResumeAudio(false);
 	}
+
+    /**
+	 * Abre o arquivo de áudio.
+	 */
+	private void openAudioFile() {
+		AudioFileFilter audioFileFilter = new AudioFileFilter();
+		JFileChooser fileChooser = new JFileChooser(WasisParameters.getInstance().getLastFilePath());
+		fileChooser.setDialogTitle(rsBundle.getString("audio_file_chooser_title"));
+		fileChooser.setMultiSelectionEnabled(true);
+		fileChooser.setAcceptAllFileFilterUsed(false);
+		fileChooser.addChoosableFileFilter(audioFileFilter);
+		fileAudioList = null;
+		
+		int intReturn = fileChooser.showOpenDialog(Wasis.this);
+		
+		if (intReturn == JFileChooser.APPROVE_OPTION) {
+			// Verifica se a conexão do banco de dados está ativa
+			WasisParameters.getInstance().checkDatabaseConnection();
+	 		
+			if (WasisParameters.getInstance().getDatabaseStatus()) {
+				// Armazena todos os arquivo de áudio selecionados em uma lista
+				fileAudioList = fileChooser.getSelectedFiles();
+				Arrays.sort(fileAudioList);
+	 			
+				// Apenas o primeiro arquivo da lista de áudio selecionada será o processado
+				// Mas todos os arquivo de áudio serão adicionados na biblioteca de áudio posteriormente
+				strAudioFilePath = fileAudioList[0].getAbsolutePath();
+				
+	         	WasisParameters.getInstance().setLastFilePath(strAudioFilePath);
+	            
+	        	// Parâmetros de FFT
+	            int intFFTSampleSize = Integer.parseInt((String) cmbFFTSamples.getValue());
+	            FFTParameters.getInstance().setFFTSampleSize(intFFTSampleSize);
+	             
+	            int intFFTOverlapFactor = (int) txtFFTOverlap.getValue();
+	            FFTParameters.getInstance().setFFTOverlapFactor(intFFTOverlapFactor);
+	             
+	            String strFFTWindowFunction = (String) cmbFFTWindow.getValue();
+	            FFTParameters.getInstance().setFFTWindowFunction(strFFTWindowFunction);
+	            
+	            loadAudio();
+			} else {
+				WasisMessageBox.showMessageDialog(rsBundle.getString("error_loading_audio_file_database"), WasisMessageBox.ERROR_MESSAGE);
+			}
+		}
+	}
+	
+	/**
+	 * Salva os dados dos segmentos selecionados do arquivo de áudio.
+	 */
+	private void saveAudioFile() {
+		if (objAudioWav != null) {
+			ScreenSaveAudio objSaveAudio = new ScreenSaveAudio(objSpectrogramGraphicPanel);
+			objSaveAudio.showScreen();
+		}
+	}
+	
+	/**
+	 * Fecha o arquivo de áudio.
+	 */
+	private void closeAudioFile() {
+		if (objAudioWav != null) {
+			if (objAudioLibraryController.closeOpenedAudioFile()) {
+				resetScreenValues();
+			}
+		}
+	}
+
+	/**
+	 * Carrega arquivo de áudio.
+	 */
+	private void loadAudio() {
+		final WasisDialogLoadingData objWasisDialogLoadingAudioFile = new WasisDialogLoadingData(rsBundle.getString("message_loading_audio_file"));
+		
+		SwingWorker<Void, Void> swingWorkerLoadAudio = new SwingWorker<Void, Void>() {
+			@Override
+			protected Void doInBackground() throws Exception {
+				try {
+					// Fecha o objeto do áudio anterior, se houver
+					if (objAudioWav != null) {
+						objAudioWav.closeAudio();
+						
+						// Pára o player, caso esteja tocando
+						if (objPlayer != null) {
+							objPlayer.stopAudio();
+						}
+						
+						// Fecha o objeto do espectrograma anterior, se houver
+						if (objSpectrogram != null) {
+							objSpectrogram.closeSpectrogram();
+						}
+					}
+					
+					// Carrega o arquivo de áudio
+					objAudioWav = new AudioWav(strAudioFilePath);
+					objAudioWav.loadAudio();
+					
+					// Aguarda finalizar o carregamento/conversão do arquivo de áudio
+					while (!objAudioWav.getStatusLoaded() && !objAudioWav.getStatusCancelled()) {
+						Thread.sleep(25); // Dorme por um instante para não sobrecarregar a CPU
+					}
+
+					// Caso haja cancelamento na conversão do arquivo
+					if (objAudioWav.getStatusCancelled()) {
+						strAudioFilePath = null;
+						
+						objAudioLibraryController.clearAudioLibraryLoadingFile();
+						
+					// Caso não haja cancelamento na conversão, continua carregando o arquivo de áudio
+					} else {
+						objWasisDialogLoadingAudioFile.showScreen();
+						
+						resetViewSelectionValues();
+						
+						if (!blnAudioFileLoadedFromLibrary) {
+							objAudioLibraryController.addAudioFileListToAudioLibrary(fileAudioList);
+						} else {
+							blnAudioFileLoadedFromLibrary = false;
+						}
+						
+						AudioTemporary.createAudioTemporary(objAudioWav);
+						
+						loadPlayer();
+
+						// Carrega o waveform em uma nova thread
+						SwingWorker<Void, Void> swingWorkerLoadWaveform = new SwingWorker<Void, Void>() { 
+							@Override
+							protected Void doInBackground() throws Exception { 
+								loadWaveform();
+								
+								return null;
+							}
+						};
+						swingWorkerLoadWaveform.execute();
+						
+						// Carrega o espectrograma em uma nova thread
+						SwingWorker<Void, Void> swingWorkerLoadSpectrogram = new SwingWorker<Void, Void>() { 
+							@Override
+							protected Void doInBackground() throws Exception { 
+								loadSpectrogram();
+								
+								return null;
+							}
+						};
+						swingWorkerLoadSpectrogram.execute();
+						
+						// Verifica se o waveform e espectrograma ainda estão em carregamento
+						while (!swingWorkerLoadWaveform.isDone() || !swingWorkerLoadSpectrogram.isDone()) {
+							Thread.sleep(50);     // Dorme por um instante para não sobrecarregar a CPU
+						}
+					}
+					
+				} catch (FileNotFoundException e) {
+					WasisMessageBox.showMessageDialog(rsBundle.getString("message_audio_file_not_found") + ". \n" +
+													  rsBundle.getString("message_audio_file_not_found_check"),
+													  WasisMessageBox.ERROR_MESSAGE);
+					
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				
+				return null;
+			}
+			
+			@Override
+			protected void done() {
+			    try {
+					get();
+					
+					// Caso o carregamento não tenha sido finalizado ou a conversão seja cancelada, 
+	    			// todo o processo posterior é desconsiderado
+	    			if (objAudioWav.getStatusLoaded() && !objAudioWav.getStatusCancelled()) {
+	    				SwingUtilities.invokeLater(new Runnable() {
+	    					@Override
+	    					public void run() {
+	    						objWaveformGraphicPanel.revalidate();
+	    						objSpectrogramGraphicPanel.revalidate();
+
+	    						objWasisDialogLoadingAudioFile.disableScreen();
+	    					}
+	    				});
+	    			}
+	    			
+				} catch (ExecutionException | InterruptedException e) {
+					objWasisDialogLoadingAudioFile.disableScreen();
+					WasisMessageBox.showMessageDialog(rsBundle.getString("error_loading_audio_file"), WasisMessageBox.ERROR_MESSAGE);
+				}
+			}
+		};
+		
+	    swingWorkerLoadAudio.execute();
+	}
+
+	/**
+	 * Carrega o Player.
+	 */
+	private void loadPlayer() {
+		if (objAudioWav != null) {
+			objPlayer = new Player(objAudioWav);
+			objPlayer.addPlayerListener(Wasis.this);
+		}
+	}
+	
+	/**
+	 * Carrega o Waveform.
+	 * 
+	 * @throws CloneNotSupportedException 
+	 */
+	private void loadWaveform() throws CloneNotSupportedException {
+		if (objAudioWav != null) {
+			resetWaveform();
+			
+			AudioWav objAudioWavWaveform = (AudioWav) objAudioWav.clone();
+			
+			objWaveform = new Waveform(objAudioWavWaveform);
+			
+			objWaveformGraphicPanel = new WaveformGraphicPanel(panelWaveform, objWaveform);
+			objWaveformGraphicPanel.setViewFullWaveform(WasisParameters.getInstance().getFullWaveform());
+			objWaveformGraphicPanel.addWaveformListener(Wasis.this);
+			objWaveformGraphicPanel.addPlayer(objPlayer);
+	        
+	        objWaveform.renderWaveform();
+	        
+	        // Insere o painel do waveform no frame principal
+	        panelWaveform.add(objWaveformGraphicPanel, "cell 0 0, grow, gap 1 2 1 2");
+		}
+	}
+	
+	/**
+	 * Carrega o Espectrograma.
+	 * 
+	 * @throws CloneNotSupportedException 
+	 */
+	private void loadSpectrogram() throws CloneNotSupportedException {
+		if (objAudioWav != null) {
+	    	resetSpectrogram();
+	    	
+	    	AudioWav objAudioWavSpectrogram = (AudioWav) objAudioWav.clone();
+	    	
+	    	objSpectrogram = new Spectrogram(objAudioWavSpectrogram);
+	    	
+	    	objSpectrogramGraphicPanel = new SpectrogramGraphicPanel(panelSpectrogram, objSpectrogram);
+	    	objSpectrogramGraphicPanel.addSpectrogramListener(Wasis.this);
+	    	objSpectrogramGraphicPanel.addPlayer(objPlayer);
+	    	
+	    	objSpectrogram.renderSpectrogram();
+	    	
+	    	// Insere o painel do espectrograma no frame principal
+	    	panelSpectrogram.add(objSpectrogramGraphicPanel, "cell 0 0, grow, gap 1 2 1 0");
+	    	panelSpectrogram.add(scrollBarHorizontalVisualization, "cell 0 1, grow, gap 1 2 0 3");
+		}
+	}
+	
+	/**
+	 * Reseta os valores dos componentes principais da tela.
+	 */
+	private void resetScreenValues() {
+		resetAudioFile();
+		resetPlayer();
+		resetWaveform();
+		resetSpectrogram();
+		resetViewSelectionValues();
+	}
+	
+	/**
+	 * Reseta arquivo de áudio.
+	 */
+	private void resetAudioFile() {
+		if (objAudioWav != null) {
+			objAudioWav.closeAudio();
+			objAudioWav = null;
+			strAudioFilePath = null;
+		}
+	}
+	
+	/**
+	 * Reseta o Player.
+	 */
+	private void resetPlayer() {
+		if (objPlayer != null) {
+			objPlayer.stopAudio();
+			objPlayer.closeFile();
+			objPlayer = null;
+		}
+	}
+	
+	/**
+	 * Reseta o Waveform.
+	 */
+	private void resetWaveform() {
+		objWaveform = null;
+		
+		if (objWaveformGraphicPanel != null && objWaveformGraphicPanel.getParent() == panelWaveform) {
+			panelWaveform.remove(objWaveformGraphicPanel);
+			panelWaveform.repaint();
+		}
+		
+		objWaveformGraphicPanel = null;
+	}
+	
+	/**
+	 * Reseta o Espectrograma.
+	 */
+	private void resetSpectrogram() {
+		if (objSpectrogram != null) {
+			objSpectrogram.closeSpectrogram();
+			objSpectrogram = null;
+		}
+		
+		if (objSpectrogramGraphicPanel != null && objSpectrogramGraphicPanel.getParent() == panelSpectrogram) {
+			resetScrollbars();
+			
+			panelSpectrogram.remove(objSpectrogramGraphicPanel);
+			panelSpectrogram.repaint();
+		}
+		
+		objSpectrogramGraphicPanel = null;
+	}
+	
+	/**
+	 * Reseta as scrollbars.
+	 */
+	private void resetScrollbars() {
+		scrollBarHorizontalVisualization.setValues(0, 0, 0, 0);
+		scrollBarVerticalVisualization.setValues(0, 0, 0, 0);
+	}
+	
+	/**
+	 * Reseta os valores de visão e seleção ativa.
+	 */
+	private void resetViewSelectionValues() {
+		intCurrentTime = 0;
+		intInitialTimeSelection = 0;
+		intFinalTimeSelection = 0;
+	    intInitialTimeView = 0;
+	    intFinalTimeView = 0;
+	    lblCurrentTime.setText(ClockTransformations.millisecondsIntoDigitalFormat(intCurrentTime));
+	    lblInitialTimeSelection.setText(ClockTransformations.millisecondsIntoDigitalFormat(intInitialTimeSelection));
+	    lblFinalTimeSelection.setText(ClockTransformations.millisecondsIntoDigitalFormat(intFinalTimeSelection));
+	    lblLengthTimeSelection.setText(ClockTransformations.millisecondsIntoDigitalFormat(intFinalTimeSelection - intInitialTimeSelection));
+	    lblInitialTimeView.setText(ClockTransformations.millisecondsIntoDigitalFormat(intInitialTimeView));
+	    lblFinalTimeView.setText(ClockTransformations.millisecondsIntoDigitalFormat(intFinalTimeView));
+	    lblLengthTimeView.setText(ClockTransformations.millisecondsIntoDigitalFormat(intFinalTimeView - intInitialTimeView));
+	    lblInitialFrequencySelection.setText("0 Hz");
+	    lblFinalFrequencySelection.setText("0 Hz");
+	    lblLengthFrequencySelection.setText("0 Hz");
+	    lblInitialFrequencyView.setText("0 Hz");
+	    lblFinalFrequencyView.setText("0 Hz");
+	    lblLengthFrequencyView.setText("0 Hz");
+	    lblMousePosition.setText("");
+	}
+	
+	/**
+	 * Realiza a classificação dos áudios pela técnica de Força Bruta.
+	 */
+	private void audioClassificationBruteForce() {
+		if (objAudioWav != null && AudioTemporary.getAudioTemporary().get(objAudioWav.getAudioTemporaryIndex()).getAudioSegments().size() > 0) {
+			try {
+				ScreenAudioClassificationBruteForce objAudioClassificationBruteForce = new ScreenAudioClassificationBruteForce(objAudioWav, objAudioLibraryController.getAudioLibrary().getIdAudioLibrary());
+				objAudioClassificationBruteForce.showScreen();
+			} catch (CloneNotSupportedException e) {
+				e.printStackTrace();
+			}
+		} else {
+			WasisMessageBox.showMessageDialog(rsBundle.getString("warning_select_audio_identification"), WasisMessageBox.WARNING_MESSAGE);
+		}
+	}
+	
+	/**
+	 * Realiza a classificação dos áudios pela técnica de Modelos de Classes.
+	 */
+	private void audioClassificationClassModel() {
+		if (objAudioWav != null && AudioTemporary.getAudioTemporary().get(objAudioWav.getAudioTemporaryIndex()).getAudioSegments().size() > 0) {
+			try {
+				ScreenAudioClassificationClassModel objScreenAudioClassificationClassModel = new ScreenAudioClassificationClassModel(objAudioWav);
+				objScreenAudioClassificationClassModel.showScreen();
+			} catch (CloneNotSupportedException e) {
+				e.printStackTrace();
+			}
+		} else {
+			WasisMessageBox.showMessageDialog(rsBundle.getString("warning_select_audio_identification"), WasisMessageBox.WARNING_MESSAGE);
+		}
+	}
+	
+	/**
+	 * Realiza a comparação dos áudios.
+	 */
+	private void classifierModelBuilder() {
+		ScreenModelBuilder objScreenModelBuilder = new ScreenModelBuilder();
+		objScreenModelBuilder.showScreen();
+	}
+	
+	/**
+	 * Atualiza o banco de dados.
+	 */
+	private void updateDatabase() {
+		ScreenUpdateDatabase objUpdateDatabase = new ScreenUpdateDatabase();
+		objUpdateDatabase.showScreen();
+	}
+	
+	/**
+	 * Abre o manual do usuário (PDF) do sistema.
+	 */
+	private void openManual() {
+		try {
+            Desktop.getDesktop().browse(new URI("https://www2.ib.unicamp.br/fnjv/wasis_manual.pdf"));
+        } catch (URISyntaxException | IOException e) {
+
+        }
+		
+		/*
+		if (Desktop.isDesktopSupported()) {
+		    try {
+		        File myFile = new File("res/wasis_manual.pdf");
+		        Desktop.getDesktop().open(myFile);
+		    } catch (IOException e) {
+		        e.printStackTrace();
+		    }
+		}
+		*/
+	}
+	
+	/**
+	 * Abre a tela de <i>About</i> do sistema.
+	 */
+	private void openAbout() {
+		ScreenAbout objScreenAbout = new ScreenAbout();
+		objScreenAbout.showScreen();
+	}
 	
 	// ********************************************************************************************************
 	// Controles do Player
@@ -2115,12 +2158,10 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 					} else {
 						objPlayer.playAudio(intInitialTimeSelection, intFinalTimeSelection);
 					}
-					
 				} else {
 					resumeAudio();
 				}
 			}
-			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -2134,7 +2175,6 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 			if (objPlayer != null) {
 				objPlayer.pauseAudio();
 			}
-			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -2148,7 +2188,6 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 			if (objPlayer != null) {
 				objPlayer.resumeAudio();
 			}
-			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -2162,7 +2201,6 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 			if (objPlayer != null) {
 				objPlayer.stopAudio();
 			}
-			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -2193,13 +2231,15 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 	}
 	
 	@Override
-	public void loadAudioFileFromAudioLibrary(final String strAudioFilePath) {
+	public void loadAudioFileFromAudioLibrary(String strAudioFilePath) {
 		this.fileAudioList = new File[1];
 		this.fileAudioList[0] = new File(strAudioFilePath);
 		
 		resetScreenValues();
 		
 		this.strAudioFilePath = strAudioFilePath;
+		
+		blnAudioFileLoadedFromLibrary = true;
 		
 		loadAudio();
 	}
@@ -2208,11 +2248,11 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 	public void resetValuesFromAudioLibrary() {
 		resetScreenValues();
 	}
-
+	
 	// ********************************************************************************************************
 	// Implementa PlayerListener
 	@Override
-	public void playerStatus(final int intStatusPlayer, final int intTimeMilliseconds) {
+	public void playerStatus(int intStatusPlayer, int intTimeMilliseconds) {
 		this.intStatusPlayer = intStatusPlayer;
 		
 		if (objPlayer != null) {
@@ -2234,53 +2274,49 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 	}
 	
 	@Override
-	public void playerTimeElapsed(final int intMilliseconds) {
+	public void playerTimeElapsed(int intMilliseconds) {
 		lblCurrentTime.setText(ClockTransformations.millisecondsIntoDigitalFormat(intMilliseconds));
 	}
 	
 	// ********************************************************************************************************
 	// Implementa SpectrogramListener
 	@Override
-	public void spectrogramCurrentTimeFrequency(final int intTime, final int intFrequency) {
+	public void spectrogramCurrentTimeFrequency(int intTime, int intFrequency) {
 		lblMousePosition.setText(intFrequency + " Hz   @   " + ClockTransformations.millisecondsIntoDigitalFormat(intTime));
 	}
 
 	@Override
-	public void spectrogramSelectedAudio(final int intCurrentTime, final int intInitialTime, final int intFinalTime, final int intInitialFrequency, final int intFinalFrequency, final boolean blnDrawWaveform) {
+	public void spectrogramSelectedAudio(int intCurrentTime, int intInitialTime, int intFinalTime, int intInitialFrequency, int intFinalFrequency, boolean blnDrawWaveform) {
 		selectedAudio(intCurrentTime, intInitialTime, intFinalTime, intInitialFrequency, intFinalFrequency);
 		
 		// Visualização completa do waveform (todo o áudio)
 		if (objWaveformGraphicPanel.getViewFullWaveform()) {
-			
 			// Linha de seleção
 			if (intInitialTime == intFinalTime) {
 				objWaveformGraphicPanel.setSelectionLine(true, intInitialTime);
-				objWaveformGraphicPanel.setSelectionBox(true, objSpectrogram.getInitialTime(), objSpectrogram.getFinalTime());
-				
+				objWaveformGraphicPanel.setAudioSegment(true, objSpectrogram.getInitialTime(), objSpectrogram.getFinalTime());
 			// Caixa de seleção
 			} else {
 				objWaveformGraphicPanel.setSelectionLine(false, 0);
-				objWaveformGraphicPanel.setSelectionBox(true, objSpectrogram.getInitialTime(), objSpectrogram.getFinalTime());
+				objWaveformGraphicPanel.setAudioSegment(true, objSpectrogram.getInitialTime(), objSpectrogram.getFinalTime());
 			}
 			
 		// Visualização parcial do waveform baseando-se no tempo inicial e final que está sendo exibido o espectrograma
 		} else {
-			
 			// Linha de seleção
 			if (intInitialTime == intFinalTime) {
 				objWaveformGraphicPanel.setSelectionLine(true, intInitialTime);
-				objWaveformGraphicPanel.setSelectionBox(false, 0, 0);
-				
+				objWaveformGraphicPanel.setAudioSegment(false, 0, 0);
 			// Caixa de seleção
 			} else {
 				objWaveformGraphicPanel.setSelectionLine(false, 0);
-				objWaveformGraphicPanel.setSelectionBox(false, 0, 0);
+				objWaveformGraphicPanel.setAudioSegment(false, 0, 0);
 			}
 		}
 		
 		// Desenha o waveform ao selecionar parte do áudio
 		if (blnDrawWaveform) {
-			checkWaveformVisualization(ZOOM_UNKNOWN);
+			processWaveformVisualization();
 		}
 		
 		objWaveformGraphicPanel.repaint();
@@ -2288,8 +2324,7 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 	}
 	
 	@Override
-	public void spectrogramViewAudio(final int intInitialTime, final int intFinalTime, final int intInitialFrequency, final int intFinalFrequency) {
-		// Tempo
+	public void spectrogramViewAudio(int intInitialTime, int intFinalTime, int intInitialFrequency, int intFinalFrequency) {
 		this.intInitialTimeView = intInitialTime;
 		this.intFinalTimeView = intFinalTime;
 
@@ -2297,7 +2332,6 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 		this.lblFinalTimeView.setText(ClockTransformations.millisecondsIntoDigitalFormat(intFinalTime));
 		this.lblLengthTimeView.setText(ClockTransformations.millisecondsIntoDigitalFormat(intFinalTime - intInitialTime));
 		
-		// Frequência
 		this.intInitialFrequencyView = intInitialFrequency;
 		this.intFinalFrequencyView = intFinalFrequency;
 		
@@ -2308,43 +2342,43 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 		updateHorizontalScrollBar();
 		updateVerticalScrollBar();
 		
-		checkWaveformVisualization(ZOOM_UNKNOWN);
+		processWaveformVisualization();
 	}
 
 	// ********************************************************************************************************
 	// Implementa WaveformListener
 	@Override
-	public void waveformCurrentTime(final int intTime) {
+	public void waveformCurrentTime(int intTime) {
 		lblMousePosition.setText(ClockTransformations.millisecondsIntoDigitalFormat(intTime));
 	}
 	
 	@Override
-	public void waveformSelectedAudio(final int intCurrentTime, final int intInitialTime, final int intFinalTime) {
+	public void waveformSelectedAudio(int intCurrentTime, int intInitialTime, int intFinalTime) {
 		// Visualização completa do waveform (todo o áudio)
 		if (objWaveformGraphicPanel.getViewFullWaveform()) {
 			
 			// Linha de seleção
 			if (intInitialTime == intFinalTime) {
-				objWaveformGraphicPanel.setSelectionBox(true, objSpectrogram.getInitialTime(), objSpectrogram.getFinalTime());
+				objWaveformGraphicPanel.setAudioSegment(true, objSpectrogram.getInitialTime(), objSpectrogram.getFinalTime());
 
-				if (!objSpectrogramGraphicPanel.getDrawSelectionBox() || (objSpectrogramGraphicPanel.getDrawSelectionBox() && !objWaveformGraphicPanel.getMouseButtonReleased())) {
+				if (!objSpectrogramGraphicPanel.getDrawAudioSegment() || (objSpectrogramGraphicPanel.getDrawAudioSegment() && !objWaveformGraphicPanel.getMouseButtonReleased())) {
 					objWaveformGraphicPanel.setSelectionLine(true, intInitialTime);
 					objSpectrogramGraphicPanel.setSelectionLine(true, intInitialTime);
-					objSpectrogramGraphicPanel.setSelectionBox(false, 0, 0);
+					objSpectrogramGraphicPanel.setAudioSegment(false, 0, 0);
 					
 					selectedAudio(intCurrentTime, intInitialTime, intFinalTime, 0, 0);
 				}
 				
 			// Caixa de seleção
 			} else {
-				reloadAudio(RELOAD_WAVEFORM_SELECTION, intInitialTime, intFinalTime, objSpectrogram.getInitialFrequency(), objSpectrogram.getFinalFrequency());
-
-				objWaveformGraphicPanel.setSelectionBox(true, intInitialTime, intFinalTime);
+				processAudioByTime(intInitialTime, intFinalTime);
 				
-				if (!objSpectrogramGraphicPanel.getDrawSelectionBox()) {
+				objWaveformGraphicPanel.setAudioSegment(true, intInitialTime, intFinalTime);
+				
+				if (!objSpectrogramGraphicPanel.getDrawAudioSegment()) {
 					objWaveformGraphicPanel.setSelectionLine(true, intInitialTime);
 					objSpectrogramGraphicPanel.setSelectionLine(true, intInitialTime);
-					objSpectrogramGraphicPanel.setSelectionBox(false, 0, 0);
+					objSpectrogramGraphicPanel.setAudioSegment(false, 0, 0);
 				}
 				
 				blnDrawScrollbarHorizontal = true;
@@ -2359,12 +2393,12 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 			// Linha de seleção
 			if (intInitialTime == intFinalTime) {
 				objSpectrogramGraphicPanel.setSelectionLine(true, intInitialTime);
-				objSpectrogramGraphicPanel.setSelectionBox(false, 0, 0);
+				objSpectrogramGraphicPanel.setAudioSegment(false, 0, 0);
 				
 			// Caixa de seleção
 			} else {
 				objSpectrogramGraphicPanel.setSelectionLine(false, 0);
-				objSpectrogramGraphicPanel.setSelectionBox(false, 0, 0);
+				objSpectrogramGraphicPanel.setAudioSegment(false, 0, 0);
 			}
 		}
 		
@@ -2376,33 +2410,55 @@ public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, 
 	 * Finaliza o sistema.
 	 */
 	private void exitSystem() {
-		// Verifica se existem seleções não salvas
-		if (AudioTemporary.checkSelectionsNotSaved(strAudioFilePath)) {
-			int intDialogResult = WasisMessageBox.showConfirmDialog(rsBundle.getString("exit_system_selections_not_saved"), WasisMessageBox.YES_NO_OPTION);
-			
-			// Fecha sistema
-			if (intDialogResult == WasisMessageBox.YES_OPTION) {
+		// Verifica se tem arquivos de áudio abertos de alguma biblioteca não gravada
+		boolean blnSaveAudioLibrary = false;
+		
+		/*
+		if (objAudioLibraryController.getAudioLibrary().getIdAudioLibrary() == 0) {
+			if (objAudioLibraryController.getListModelAudioLibrary().getSize() > 0) {
+				int intDialogResult = WasisMessageBox.showConfirmDialog(rsBundle.getString("exit_system_audio_library_not_saved"), WasisMessageBox.YES_NO_OPTION);
+				
+				// Abre a tela para a gravação da nova biblioteca de áudio
+				if (intDialogResult == WasisMessageBox.YES_OPTION) {
+					blnSaveAudioLibrary = true;
+					
+					saveAudioLibrary();
+					
+					setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+				}
+			}
+		}
+		*/
+		
+		if (!blnSaveAudioLibrary) {
+			// Verifica se existem segmentos de áudio não gravados
+			if (AudioTemporary.checkAudioSegmentsNotSaved(strAudioFilePath)) {
+				int intDialogResult = WasisMessageBox.showConfirmDialog(rsBundle.getString("exit_system_audio_segments_not_saved"), WasisMessageBox.YES_NO_OPTION);
+				
+				// Fecha sistema
+				if (intDialogResult == WasisMessageBox.YES_OPTION) {
+					setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+					
+					resetScreenValues();
+					AudioTemporary.deleteTemporaryFiles();
+					WasisParameters.getInstance().saveParameters();
+					
+					System.exit(0);
+					
+				// Mantem o sistema aberto
+				} else {
+					setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+				}
+				
+			} else {
 				setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 				
 				resetScreenValues();
-
 				AudioTemporary.deleteTemporaryFiles();
+				WasisParameters.getInstance().saveParameters();
 				
 				System.exit(0);
-				
-			// Mantem o sistema aberto
-			} else {
-				setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 			}
-			
-		} else {
-			setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-			
-			resetScreenValues();
-
-			AudioTemporary.deleteTemporaryFiles();
-			
-			System.exit(0);
 		}
 	}
 }

@@ -4,7 +4,7 @@ package br.unicamp.fnjv.wasis.features;
  * Audio Feature Preprocessing.
  * 
  * @author Leandro Tacioli
- * @version 1.0 - 15/Fev/2016
+ * @version 2.0 - 27/Set/2017
  */
 public class Preprocessing {
 	/** Pre-Emphasis Alpha (Set to 0 if no pre-emphasis should be performed) */
@@ -26,15 +26,15 @@ public class Preprocessing {
 	/**
      * Perform pre-emphasis to equalize amplitude of high and low frequency.
      * 
-     * @param inputSignal - Audio Signal
+     * @param audioSignal - Audio Signal
      * 
      * @return preEmphasis
      */
-    public static double[] preEmphasis(double[] inputSignal) {
-        double preEmphasis[] = new double[inputSignal.length];
+    public static double[] preEmphasis(double[] audioSignal) {
+        double[] preEmphasis = new double[audioSignal.length];
         
-        for (int indexSignal = 1; indexSignal < inputSignal.length; indexSignal++) {
-        	preEmphasis[indexSignal] = inputSignal[indexSignal] - PRE_EMPHASIS_ALPHA * inputSignal[indexSignal - 1];
+        for (int indexSignal = 1; indexSignal < audioSignal.length; indexSignal++) {
+        	preEmphasis[indexSignal] = audioSignal[indexSignal] - PRE_EMPHASIS_ALPHA * audioSignal[indexSignal - 1];
         }
         
         return preEmphasis;
@@ -46,21 +46,21 @@ public class Preprocessing {
      * Default <i>FRAME_LENGTH</i> = 1024.<br>
      * Default <i>OVERLAP_SAMPLES</i> = FRAME_LENGTH / 2.
      * 
-     * @param inputSignal - Audio Signal
+     * @param audioSignal - Audio Signal
      */
-    public static double[][] framing(double[] inputSignal) {
-    	return framing(inputSignal, FRAME_LENGTH, OVERLAP_SAMPLES);
+    public static double[][] framing(double[] audioSignal) {
+    	return framing(audioSignal, FRAME_LENGTH, OVERLAP_SAMPLES);
     }
     
     /**
      * Performs Frame Blocking to break down an audio signal into frames.
      * 
-     * @param inputSignal       - Audio Signal
+     * @param audioSignal       - Audio Signal
      * @param intFrameLength    - Frame Length
      * @param intOverlapSamples - Overlap Samples
      */
-    public static double[][] framing(double[] inputSignal, int intFrameLength, int intOverlapSamples) {
-        double dblNumFrames = (double) inputSignal.length / (double) (intFrameLength - intOverlapSamples);
+    public static double[][] framing(double[] audioSignal, int intFrameLength, int intOverlapSamples) {
+        double dblNumFrames = (double) audioSignal.length / (double) (intFrameLength - intOverlapSamples);
         
         // unconditionally round up
         if ((dblNumFrames / (int) dblNumFrames) != 1) {
@@ -68,9 +68,9 @@ public class Preprocessing {
         }
         
         // use zero padding to fill up frames with not enough samples
-        double paddedSignal[] = new double[(int) dblNumFrames * intFrameLength];
-        for (int indexSignal = 0; indexSignal < inputSignal.length; indexSignal++) {
-            paddedSignal[indexSignal] = inputSignal[indexSignal];
+        double[] paddedSignal = new double[(int) dblNumFrames * intFrameLength];
+        for (int indexSignal = 0; indexSignal < audioSignal.length; indexSignal++) {
+            paddedSignal[indexSignal] = audioSignal[indexSignal];
         }
         
         double[][] frames = new double[(int) dblNumFrames][intFrameLength];

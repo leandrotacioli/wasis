@@ -300,7 +300,6 @@ public class Player implements Runnable, PlayerController {
         boolean blnBytesSkipped = false;
 		
 		while (intPlayerStatus != STATUS_STOPPED) {
-
 			if (sourceDataLine.isOpen()) {
 	            sourceDataLine.start();
 
@@ -308,7 +307,6 @@ public class Player implements Runnable, PlayerController {
 	            	try {
 	            		// Playing
 	    	        	if (intPlayerStatus == STATUS_PLAYING) {
-	    	        		
 	    	        		// Desconsidera os bytes iniciais, caso seja necessário tocar o áudio
 	    	        		// a partir de uma posição que não seja o início do áudio.
 	    	    			if (!blnBytesSkipped) {
@@ -325,7 +323,7 @@ public class Player implements Runnable, PlayerController {
 	    	        			    	        		
 		            		intBytesRead = audioInputStream.read(arrayBuffer);
 		            		lgnBytesAlreadyRead += intBytesRead;
-
+		            		
 		            		if (lgnBytesAlreadyRead <= lgnFinalByteToRead) {
 			            		if (intBytesRead >= 0) {
 			            			sourceDataLine.write(arrayBuffer, 0, intBytesRead);
@@ -393,6 +391,7 @@ public class Player implements Runnable, PlayerController {
 	private void updatePlayerStatus(int intStatusPlayer, int intTimeMilliseconds) {
         Iterator<Object> it = collectionListenerPlayer.iterator();
         PlayerListener playerListener;
+        
         while (it.hasNext()) {
             playerListener = (PlayerListener) it.next();
             playerListener.playerStatus(intStatusPlayer, intTimeMilliseconds);
@@ -407,6 +406,7 @@ public class Player implements Runnable, PlayerController {
 	private void updatePlayerTimeElapsed(int intMilliseconds) {
         Iterator<Object> it = collectionListenerPlayer.iterator();
         PlayerListener playerListener;
+        
         while (it.hasNext()) {
             playerListener = (PlayerListener) it.next();
             playerListener.playerTimeElapsed(intMilliseconds);

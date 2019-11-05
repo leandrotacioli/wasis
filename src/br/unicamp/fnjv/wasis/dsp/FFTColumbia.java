@@ -177,7 +177,7 @@ public class FFTColumbia {
 	      
 	    	while (j >= n1) {
 	    		j = j - n1;
-	    		n1 = n1/2;
+	    		n1 = n1 / 2;
 	    	}
 	    	
 	    	j = j + n1;
@@ -223,14 +223,11 @@ public class FFTColumbia {
 	    // Amplitudes - dBFS
 	    amplitudes = new double[n / 2];
         
-	    double dblSquaredMagnitude;
-	    double dblAmplitudeMagnitude;
-	    
         for (int index = 0; index < n / 2; index++) {
-        	dblSquaredMagnitude = (x[index] * x[index] + y[index] * y[index]) / n;
+        	double dblSquaredMagnitude = (x[index] * x[index] + y[index] * y[index]) / n;
         	
-        	dblAmplitudeMagnitude = 10 * Math.log10(dblSquaredMagnitude);
-        	dblAmplitudeMagnitude = dblAmplitudeMagnitude - 96.00d;      // 96dB range para 16 bits
+        	double dblAmplitudeMagnitude = 10 * Math.log10(dblSquaredMagnitude);
+        	dblAmplitudeMagnitude = dblAmplitudeMagnitude - 96.00d;      // 96dB range for 16 bits audio format
             
             amplitudes[index] = dblAmplitudeMagnitude;
         }

@@ -5,7 +5,7 @@ package br.unicamp.fnjv.wasis.player;
  * for all registered PlayerListener of Player.
  * 
  * @author Leandro Tacioli
- * @version 1.1 - 12/Fev/2015
+ * @version 2.0 - 25/Set/2017
  */
 public interface PlayerListener {
 	
@@ -15,12 +15,12 @@ public interface PlayerListener {
      * @param strStatusPlayer
      * @param intTimeMilliseconds
      */
-    public void playerStatus(final int intStatusPlayer, final int intTimeMilliseconds);
+    public void playerStatus(int intStatusPlayer, int intTimeMilliseconds);
 	
     /**
      * Tempo decorrido enquanto o áudio está tocando (em milisegundos).
      * 
      * @param intTimeMilliseconds - Posição em milisegundos
      */
-    public void playerTimeElapsed(final int intTimeMilliseconds);
+    public void playerTimeElapsed(int intTimeMilliseconds);
 }

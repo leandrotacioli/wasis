@@ -5,7 +5,7 @@ package br.unicamp.fnjv.wasis.audio.library;
  * para todas as classes que estenderem <i>AudioLibraryListener</i>.
  * 
  * @author Leandro Tacioli
- * @version 1.1 - 21/Nov/2014
+ * @version 2.0 - 15/Set/2017
  */
 public interface AudioLibraryListener {
 	
@@ -19,7 +19,7 @@ public interface AudioLibraryListener {
      * 
      * @param strAudioFilePath - Caminho do arquivo de áudio
      */
-    public void loadAudioFileFromAudioLibrary(final String strAudioFilePath);
+    public void loadAudioFileFromAudioLibrary(String strAudioFilePath);
     
     /**
      * Reseta os valores quando não há nenhum áudio a ser carregado.

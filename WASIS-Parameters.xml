@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<WASIS-Parameters>
+    <Config>
+        <WasisUser>wasis</WasisUser>
+        <Language>Português</Language>
+        <LastFilePath>C:\</LastFilePath>
+        <FullWaveform>false</FullWaveform>
+        <SpectrogramColorDisplay>Grayscale</SpectrogramColorDisplay>
+        <DatabaseEngine>MySQL</DatabaseEngine>
+        <DatabaseServer>localhost</DatabaseServer>
+        <DatabaseName>wasis</DatabaseName>
+        <DatabaseUser>root</DatabaseUser>
+        <DatabasePassword>1234</DatabasePassword>
+    </Config>
+</WASIS-Parameters>

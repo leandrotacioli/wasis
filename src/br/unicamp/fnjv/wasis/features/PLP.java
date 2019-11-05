@@ -2,15 +2,16 @@ package br.unicamp.fnjv.wasis.features;
 
 import br.unicamp.fnjv.wasis.dsp.FFT;
 import br.unicamp.fnjv.wasis.dsp.FFTWindowFunction;
+import br.unicamp.fnjv.wasis.libs.RoundNumbers;
 import br.unicamp.fnjv.wasis.libs.Statistics;
 
 /**
- * Feature extraction class used to extract Perceptual Linear Prediction (PLP) from audio signal.
+ * Feature extraction class used to extract Perceptual Linear Prediction (PLP) from audio signals.
  *
  * @author Leandro Tacioli
- * @version 2.0 - 15/Mai/2017
+ * @version 4.0 - 27/Out/2017
  */
-public class PLP {
+public class PLP extends Features {
 	/** Number of PLP filters. */
     private final int PLP_FILTERS = 21;
 	
@@ -33,6 +34,9 @@ public class PLP {
     /** Lower limit of the filter */
     private final double LOWER_FILTER_FREQUENCY = 45.0;
     
+    /** Sample rate */
+    private double dblSampleRate;
+    
     /** Filter coefficients. */
     private BarkFilterbank[] barkFilterbanks;
     
@@ -54,50 +58,39 @@ public class PLP {
     private double[] mean;
     private double[] standardDeviation;
     
-    /**
-     * Returns the final PLP Coefficients.
-     * 
-     * @return plp
-     */
-    public double[][] getPLP() {
-    	return plp;
-    }
-    
-    /**
-     * Returns the mean of the MFCC Coefficients.
-     * 
-     * @return mean
-     */
-    public double[] getMean() {
-    	return mean;
-    }
-    
-    /**
-     * Returns the standard deviation of the MFCC Coefficients.
-     * 
-     * @return standardDeviation
-     */
-    public double[] getStandardDeviation() {
-    	return standardDeviation;
-    }
-    
 	/**
      * Feature extraction class used to extract Perceptual Linear Prediction (PLP) from audio signal.
      */
-    public PLP() {
+    public PLP(double dblSampleRate) {
+    	this.dblSampleRate = dblSampleRate;
+    	
     	computeCosine();
     }
     
     /**
-     * Takes an audio signal and returns the Perceptual Linear Prediction (PLP).
+     * Takes an audio signal and computes the Perceptual Linear Prediction (PLP).<br>
+     * <br>
+     * It starts processing the samples by performing framing.
      * 
-     * @param samples
-     * @param dblSampleRate
+     * @param audioSignal
      */
-    public void process(double[] samples, double dblSampleRate) {
+    @Override
+    public void process(double[] audioSignal) {
     	// Step 1 - Frame Blocking
-        double[][] frames = Preprocessing.framing(samples, FRAME_LENGTH, OVERLAP_SAMPLES);
+        double[][] frames = Preprocessing.framing(audioSignal, FRAME_LENGTH, OVERLAP_SAMPLES);
         
+        processFrames(frames);
+    }
+    
+    /**
+     * Computes the Perceptual Linear Prediction (PLP) from audio frames.<br>
+     * <br>
+     * It assumes that framing have already been performed.
+     * 
+     * @param frames
+     */
+    @Override
+    public void processFrames(double[][] frames) {
         // Step 2 - Windowing - Apply Hamming Window to all frames
         objFFT = new FFT(FRAME_LENGTH, WINDOW_FUNCTION);
         
@@ -111,19 +104,26 @@ public class PLP {
         
         plp = new double[frames.length][LPCC_ORDER];
         
+        double[] magnitudeSpectrum;
+        double[] plpSpectral;
+        double[] intensityLoudness;
+        double[] autoCorrelation;
+        
+        LPC objLPC;
+        
         // Below computations are all based on individual frames
         for (int indexFrame = 0; indexFrame < frames.length; indexFrame++) {
         	// Step 3 - Magnitude Spectrum (FFT)
-            double[] magnitudeSpectrum = magnitudeSpectrum(frames[indexFrame]);
+            magnitudeSpectrum = magnitudeSpectrum(frames[indexFrame]);
             
             // Step 4 - Bark Filter Bank
-            barkFilterBank(magnitudeSpectrum, dblSampleRate);
+            barkFilterBank(magnitudeSpectrum);
             
             // Step 5 - Equal Loudness / Preemphasis
             equalLoudness();
             
             // PLP Spectral array
-            double[] plpSpectral = new double[PLP_FILTERS];
+            plpSpectral = new double[PLP_FILTERS];
             
             for (int indexFilter = 0; indexFilter < PLP_FILTERS; indexFilter++) {
             	plpSpectral[indexFilter] = barkFilterbanks[indexFilter].filterOutput(magnitudeSpectrum);
@@ -131,17 +131,16 @@ public class PLP {
             }
             
             // Step 6 - Intensity Loudness
-            double[] intensityLoudness = intensityLoudness(plpSpectral);
-
-            // Step 7 - Linear Predictive Coding (LPC)
-            double[] autoCorrelation = applyCosine(intensityLoudness);
+            intensityLoudness = intensityLoudness(plpSpectral);
             
-            LPC objLPC = new LPC(LPC_ORDER, LPCC_ORDER, false);
-            objLPC.process(autoCorrelation);
-            objLPC.processLPCC();
+            autoCorrelation = applyCosine(intensityLoudness);
+            
+            // Step 7 - Linear Predictive Coding (LPC)
+            objLPC = new LPC(LPC_ORDER, LPCC_ORDER);
+            objLPC.processAutocorrelatedFrame(autoCorrelation);
             
             // Step 8 - Linear Prediction Cepstral Coefficient (LPCC)
-            plp[indexFrame] = objLPC.getLPCC()[0];
+            plp[indexFrame] = objLPC.getFeatureLpcc()[0];
         }
         
         // Calculates mean and standard deviation for each coefficient
@@ -157,9 +156,39 @@ public class PLP {
     			coefficientValues[indexFrame] = plp[indexFrame][indexCoefficient];
     		}
     		
-    		mean[indexCoefficient] = Statistics.calculateMean(coefficientValues);
-    		standardDeviation[indexCoefficient] = Statistics.calculateStandardDeviation(coefficientValues);
+    		mean[indexCoefficient] = RoundNumbers.round(Statistics.calculateMean(coefficientValues), 4);
+    		standardDeviation[indexCoefficient] = RoundNumbers.round(Statistics.calculateStandardDeviation(coefficientValues), 4);
     	}
+    }
+    
+    /**
+     * Returns the final PLP Coefficients.
+     * 
+     * @return plp
+     */
+    @Override
+    public double[][] getFeature() {
+    	return plp;
+    }
+    
+    /**
+     * Returns the mean of the MFCC Coefficients.
+     * 
+     * @return mean
+     */
+    @Override
+    public double[] getMean() {
+    	return mean;
+    }
+    
+    /**
+     * Returns the standard deviation of the MFCC Coefficients.
+     * 
+     * @return standardDeviation
+     */
+    @Override
+    public double[] getStandardDeviation() {
+    	return standardDeviation;
     }
     
     /**
@@ -169,8 +198,8 @@ public class PLP {
      * 
      * @return magnitudeSpectrum - Magnitude Spectrum
      */
-    private double[] magnitudeSpectrum(double frame[]) {
-        double magnitudeSpectrum[] = new double[frame.length];
+    private double[] magnitudeSpectrum(double[] frame) {
+        double[] magnitudeSpectrum = new double[frame.length];
         
         objFFT.executeFFT(frame);
         
@@ -182,11 +211,11 @@ public class PLP {
     }
     
     /**
+     * Computes BarkFilterBank.
      * 
      * @param magnitudeSpectrum
-     * @param dblSampleRate
      */
-    private void barkFilterBank(double magnitudeSpectrum[], double dblSampleRate) {
+    private void barkFilterBank(double[] magnitudeSpectrum) {
     	double[] frequencyBins = new double[FRAME_LENGTH];
         
         for (int indexFrameLength = 0; indexFrameLength < FRAME_LENGTH; indexFrameLength++) {

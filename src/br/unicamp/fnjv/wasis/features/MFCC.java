@@ -7,12 +7,12 @@ import br.unicamp.fnjv.wasis.libs.RoundNumbers;
 import br.unicamp.fnjv.wasis.libs.Statistics;
 
 /**
- * Feature extraction class used to extract Mel-Frequency Cepstral Coefficients (MFFC) from audio signal.
+ * Feature extraction class used to extract Mel-Frequency Cepstral Coefficients (MFFC) from audio signals.
  *
  * @author Leandro Tacioli
- * @version 3.0 - 18/Mai/2017
+ * @version 5.0 - 26/Out/2017
  */
-public class MFCC {
+public class MFCC extends Features {
 	/** Number of MFCCs coefficients per frame.<br>
      * <br>
      * <b>IMPORTANT 1:</b> The 0th coefficient will be discarded because it is
@@ -39,6 +39,9 @@ public class MFCC {
     /** Upper limit of the filter (usually half of the Sample Rate) */
 	//private final double UPPER_FILTER_FREQUENCY = 22050.00;
     
+    /** Sample rate */
+    private double dblSampleRate;
+    
     /** Delta N */
     private final int DELTA_N = 2;
     
@@ -58,36 +61,11 @@ public class MFCC {
     private double[] standardDeviation;
     
     /**
-     * Returns the final MFCC Coefficients.
-     * 
-     * @return mfcc
+     * Feature extraction class used to extract Mel-Frequency Cepstral Coefficients (MFFCs) from audio signals.
      */
-    public double[][] getMFCC() {
-    	return mfcc;
-    }
-    
-    /**
-     * Returns the mean of the MFCC Coefficients.
-     * 
-     * @return mean
-     */
-    public double[] getMean() {
-    	return mean;
-    }
-    
-    /**
-     * Returns the standard deviation of the MFCC Coefficients.
-     * 
-     * @return standardDeviation
-     */
-    public double[] getStandardDeviation() {
-    	return standardDeviation;
-    }
-    
-    /**
-     * Feature extraction class used to extract Mel-Frequency Cepstral Coefficients (MFFCs) from audio signal.
-     */
-    public MFCC() {
+    public MFCC(double dblSampleRate) {
+    	this.dblSampleRate = dblSampleRate;
+    	
     	calculateDeltaValues();
     }
     
@@ -114,21 +92,35 @@ public class MFCC {
     }
     
     /**
-     * Takes an audio signal and returns the Mel-Frequency Cepstral Coefficients (MFCCs).
+     * Take samples from an audio signal and computes the Mel-Frequency Cepstral Coefficients (MFCCs).<br>
+     * <br>
+     * It starts processing the samples by performing pre-emphasis and framing.
      * 
-     * @param samples
-     * @param dblSampleRate
+     * @param audioSignal
      */
-    public void process(double[] samples, double dblSampleRate) {
+    @Override
+    public void process(double[] audioSignal) {
         // Step 1 - Pre-Emphasis
-        double[] preEmphasis = Preprocessing.preEmphasis(samples);
+        double[] preEmphasis = Preprocessing.preEmphasis(audioSignal);
         
         // Step 2 - Frame Blocking
         double[][] frames = Preprocessing.framing(preEmphasis, FRAME_LENGTH, OVERLAP_SAMPLES);
         
+        processFrames(frames);
+    }
+    
+    /**
+     * Computes the Mel-Frequency Cepstral Coefficients (MFCCs) from audio frames.<br>
+     * <br>
+     * It assumes that pre-emphasis and framing have already been performed.
+     * 
+     * @param frames
+     */
+    @Override
+    public void processFrames(double[][] frames) {
         // Step 3 - Windowing - Apply Hamming Window to all frames
         objFFT = new FFT(FRAME_LENGTH, WINDOW_FUNCTION);
-
+        
         for (int indexFrame = 0; indexFrame < frames.length; indexFrame++) {
         	frames[indexFrame] = objFFT.applyWindow(frames[indexFrame]);
         }
@@ -139,24 +131,28 @@ public class MFCC {
         
         // Initializes the MFCC matrix
         double[][] initialMfcc = new double[frames.length][intTotalStaticCoefficients];
+        double[] magnitudeSpectrum;
+        double[] melFilterBank;
+        double[] naturalLogarithm;
+        double[] cepstralCoefficients;
         
         // Below computations are all based on individual frames
         for (int indexFrame = 0; indexFrame < frames.length; indexFrame++) {
             // Step 4 - Magnitude Spectrum (FFT)
-            double[] magnitudeSpectrum = magnitudeSpectrum(frames[indexFrame]);
+            magnitudeSpectrum = magnitudeSpectrum(frames[indexFrame]);
             
             // Step 5 - Mel Filter Bank
-            double[] melFilterBank = melFilterBank(magnitudeSpectrum, dblSampleRate);
+            melFilterBank = melFilterBank(magnitudeSpectrum);
             
             // Step 6 - Logarithm
-            double[] naturalLogarithm = naturalLogarithm(melFilterBank);
+            naturalLogarithm = naturalLogarithm(melFilterBank);
             
             // Step 7 - DCT - Cepstral coefficients
-            double[] cepstralCoefficients = cepstralCoefficients(naturalLogarithm);
+            cepstralCoefficients = cepstralCoefficients(naturalLogarithm);
             
             // Add resulting MFCC to array
             // 0th coefficient is discarded
-            for (int indexCoefficient = 1; indexCoefficient < MFFC_COEFFICIENTS; indexCoefficient++){
+            for (int indexCoefficient = 1; indexCoefficient < MFFC_COEFFICIENTS; indexCoefficient++) {
             	initialMfcc[indexFrame][indexCoefficient - 1] = cepstralCoefficients[indexCoefficient];
             }
         }
@@ -172,9 +168,9 @@ public class MFCC {
         // Concatenates MFCC + Delta + Delta Delta
         for (int indexFrame = 0; indexFrame < frames.length; indexFrame++) {
         	for (int indexCoefficient = 0; indexCoefficient < intTotalStaticCoefficients; indexCoefficient++) {
-        		mfcc[indexFrame][indexCoefficient] = RoundNumbers.round(initialMfcc[indexFrame][indexCoefficient]);                               // MFCC
-        		mfcc[indexFrame][indexCoefficient + intTotalStaticCoefficients] = RoundNumbers.round(delta[indexFrame][indexCoefficient]);          // Delta
-        		mfcc[indexFrame][indexCoefficient + intTotalStaticCoefficients * 2] = RoundNumbers.round(deltaDelta[indexFrame][indexCoefficient]); // Delta Delta
+        		mfcc[indexFrame][indexCoefficient] = RoundNumbers.round(initialMfcc[indexFrame][indexCoefficient], 4);                                 // MFCC
+        		mfcc[indexFrame][indexCoefficient + intTotalStaticCoefficients] = RoundNumbers.round(delta[indexFrame][indexCoefficient], 4);          // Delta
+        		mfcc[indexFrame][indexCoefficient + intTotalStaticCoefficients * 2] = RoundNumbers.round(deltaDelta[indexFrame][indexCoefficient], 4); // Delta Delta
         	}
         }
         
@@ -191,9 +187,29 @@ public class MFCC {
     			coefficientValues[indexFrame] = mfcc[indexFrame][indexCoefficient];
     		}
     		
-    		mean[indexCoefficient] = Statistics.calculateMean(coefficientValues);
-    		standardDeviation[indexCoefficient] = Statistics.calculateStandardDeviation(coefficientValues);
+    		mean[indexCoefficient] = RoundNumbers.round(Statistics.calculateMean(coefficientValues), 4);
+    		standardDeviation[indexCoefficient] = RoundNumbers.round(Statistics.calculateStandardDeviation(coefficientValues), 4);
     	}
+    }
+    
+    /**
+     * Returns the final MFCC Coefficients.
+     * 
+     * @return mfcc
+     */
+    @Override
+    public double[][] getFeature() {
+    	return mfcc;
+    }
+    
+    @Override
+    public double[] getMean() {
+    	return mean;
+    }
+    
+    @Override
+    public double[] getStandardDeviation() {
+    	return standardDeviation;
     }
     
     /**
@@ -204,11 +220,11 @@ public class MFCC {
      * @return magnitudeSpectrum - Magnitude Spectrum
      */
     private double[] magnitudeSpectrum(double[] frame) {
-        double magnitudeSpectrum[] = new double[frame.length];
+        double[] magnitudeSpectrum = new double[frame.length];
         
         objFFT.executeFFT(frame);
         
-        for (int k = 0; k < frame.length; k++){
+        for (int k = 0; k < frame.length; k++) {
         	magnitudeSpectrum[k] = Math.pow(objFFT.getReal()[k] * objFFT.getReal()[k] + objFFT.getImag()[k] * objFFT.getImag()[k], 0.5);
         }
         
@@ -219,14 +235,13 @@ public class MFCC {
      * Calculates the Mel filter bank.
      * 
      * @param magnitudeSpectrum - Magnitude Spectrum
-     * @param dblSampleRate     - Sample Rate
      * 
      * @return melFilterBank
      */
-    private double[] melFilterBank(double[] magnitudeSpectrum, double dblSampleRate) {
-    	int[] fftBinIndices = fftBinIndices(dblSampleRate, FRAME_LENGTH);
+    private double[] melFilterBank(double[] magnitudeSpectrum) {
+    	int[] fftBinIndices = fftBinIndices();
     	
-        double temp[] = new double[MEL_FILTERS + 2];
+        double[] temp = new double[MEL_FILTERS + 2];
         
         for (int k = 1; k <= MEL_FILTERS; k++) {
             double dblNum1 = 0;
@@ -245,7 +260,7 @@ public class MFCC {
         
         double[] melFilterBank = new double[MEL_FILTERS];
         
-        for (int i = 0; i < MEL_FILTERS; i++){
+        for (int i = 0; i < MEL_FILTERS; i++) {
         	melFilterBank[i] = temp[i + 1];
         }
         
@@ -255,21 +270,18 @@ public class MFCC {
     /**
      * Calculates the FFT bin indices.
      * 
-     * @param dblSampleRate
-     * @param frameSize
-     * 
      * @return fftBinIndices - FFT bin indices
      */
-    private int[] fftBinIndices(double dblSampleRate, int intFrameSize) {
+    private int[] fftBinIndices() {
         int[] fftBinIndices = new int[MEL_FILTERS + 2];
         
-        fftBinIndices[0] = (int) Math.round(LOWER_FILTER_FREQUENCY / dblSampleRate * intFrameSize);
-        fftBinIndices[fftBinIndices.length - 1] = (int) (intFrameSize / 2);
+        fftBinIndices[0] = (int) Math.round(LOWER_FILTER_FREQUENCY / dblSampleRate * FRAME_LENGTH);
+        fftBinIndices[fftBinIndices.length - 1] = (int) (FRAME_LENGTH / 2);
         
-        for (int indexMelFilter = 1; indexMelFilter <= MEL_FILTERS; indexMelFilter++){
-            double dblCenterFrequency = centerFrequency(indexMelFilter, dblSampleRate);
+        for (int indexMelFilter = 1; indexMelFilter <= MEL_FILTERS; indexMelFilter++) {
+            double dblCenterFrequency = centerFrequency(indexMelFilter);
             
-            fftBinIndices[indexMelFilter] = (int) Math.round(dblCenterFrequency / dblSampleRate * intFrameSize);
+            fftBinIndices[indexMelFilter] = (int) Math.round(dblCenterFrequency / dblSampleRate * FRAME_LENGTH);
         }
         
         return fftBinIndices;
@@ -287,7 +299,7 @@ public class MFCC {
         
         final double FLOOR = -50;
         
-        for (int i = 0; i < melFilterBank.length; i++){
+        for (int i = 0; i < melFilterBank.length; i++) {
         	naturalLogarithm[i] = Math.log(melFilterBank[i]);
             
             // check if ln() returns a value less than the floor
@@ -309,8 +321,8 @@ public class MFCC {
     private double[] cepstralCoefficients(double[] naturalLogarithm) {
         double[] cepstralCoefficients = new double[MFFC_COEFFICIENTS];
         
-        for (int i = 0; i < cepstralCoefficients.length; i++){
-            for (int j = 1; j <= MEL_FILTERS; j++){
+        for (int i = 0; i < cepstralCoefficients.length; i++) {
+            for (int j = 1; j <= MEL_FILTERS; j++) {
             	cepstralCoefficients[i] += naturalLogarithm[j - 1] * Math.cos(Math.PI * i / MEL_FILTERS * (j - 0.5));
             }
         }
@@ -336,8 +348,8 @@ public class MFCC {
      * 
      * @return Center Frequency
      */
-    private double centerFrequency(int indexMelFilter, double dblSampleRate) {
-        double mel[] = new double[2];
+    private double centerFrequency(int indexMelFilter) {
+        double[] mel = new double[2];
         mel[0] = frequencyToMel(LOWER_FILTER_FREQUENCY);
         mel[1] = frequencyToMel(dblSampleRate / 2);
         
@@ -429,7 +441,7 @@ public class MFCC {
     	
     	// Initial & final padding
     	for (int i = 0; i < DELTA_N; i++) {
-    		paddedData[i] = data[0];                                            // Initial padding
+    		paddedData[i] = data[0];                                          // Initial padding
     		paddedData[intTotalRows + DELTA_N + i] = data[intTotalRows - 1];  // Final padding
     	}
     	

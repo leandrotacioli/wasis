@@ -7,12 +7,12 @@ import br.unicamp.fnjv.wasis.libs.Statistics;
 
 /**
  * Feature extraction class used to extract Linear Predictive Coding (LPC) and
- * LPCC (Linear Prediction Cepstral Coefficients) from audio signal.
+ * LPCC (Linear Prediction Cepstral Coefficients) from audio signals.
  * 
  * @author Leandro Tacioli
- * @version 2.0 - 15/Mai/2017
+ * @version 4.0 - 27/Out/2017
  */
-public class LPC {
+public class LPC extends Features {
 	/** LPC Order - Equivalent to the number of LPC coefficients. */
     private final int LPC_ORDER = 24;
     private int intLpcOrder;
@@ -48,78 +48,21 @@ public class LPC {
      * Each column is related to its respective frame. */
     private double[] alpha;
     
-    /** Performs preprocessing to extract LPC */
-    private boolean blnPerformPreprocessing;
-    
     private double[][] lpc;
-    private double[] meanLPC;
-    private double[] standardDeviationLPC;
+    private double[] lpcMean;
+    private double[] lpcStandardDeviation;
     
     private double[][] lpcc;
-    private double[] meanLPCC;
-    private double[] standardDeviationLPCC;
+    private double[] lpccMean;
+    private double[] lpccStandardDeviation;
     
     /**
-     * Returns the final LPC coefficients.
-     * 
-     * @return lpc
-     */
-    public double[][] getLPC() {
-    	return lpc;
-    }
-    
-    /**
-     * Returns the mean of the LPC coefficients.
-     * 
-     * @return meanLPC
-     */
-    public double[] getMeanLPC() {
-    	return meanLPC;
-    }
-    
-    /**
-     * Returns the standard deviation of the LPC coefficients.
-     * 
-     * @return standardDeviationLPC
-     */
-    public double[] getStandardDeviationLPC() {
-    	return standardDeviationLPC;
-    }
-    
-    /**
-     * Returns the final LPCC coefficients.
-     * 
-     * @return lpcc
-     */
-    public double[][] getLPCC() {
-    	return lpcc;
-    }
-    
-    /**
-     * Returns the mean of the LPCC coefficients.
-     * 
-     * @return meanLPCC
-     */
-    public double[] getMeanLPCC() {
-    	return meanLPCC;
-    }
-    
-    /**
-     * Returns the standard deviation of the LPCC coefficients.
-     * 
-     * @return standardDeviationLPC
-     */
-    public double[] getStandardDeviationLPCC() {
-    	return standardDeviationLPCC;
-    }
-    
-    /**
-     * Feature extraction class used to extract Linear Predictive Coding (LPC) from audio signal.
+     * Feature extraction class used to extract Linear Predictive Coding (LPC) and
+     * LPCC (Linear Prediction Cepstral Coefficients) from audio signals.
      */
     public LPC() {
     	this.intLpcOrder = LPC_ORDER;
     	this.intLpccOrder = LPCC_ORDER;
-    	this.blnPerformPreprocessing = true;
     	
     	reflectionCoeffs = null;
         ARParameters = null;
@@ -128,20 +71,14 @@ public class LPC {
     
     /**
      * Feature extraction class used to extract Linear Predictive Coding (LPC) and
-     * LPCC (Linear Prediction Cepstral Coefficients) from audio signal.
+     * LPCC (Linear Prediction Cepstral Coefficients) from audio signals.
      *
      * @param intLpcOrder  - LPC Order - Equivalent to the number of LPC coefficients
      * @param intLpccOrder - LPCC Order - Equivalent to the number of LPCC coefficients
-     * @param blnPerformPreprocessing - This flag allows the preprocessing of
-     *                                  the signal (e.g. PreEmphasis, Framing, Autocorrelation).
-     *                                  It should not receive <i>TRUE</i> in case of features that make use of LPC,
-     *                                  such as Perceptual Linear prediction (PLP).
-     *                                  Also, we assume that only one frame will be processed when it is value is <i>FALSE</i>. 
      */
-    public LPC(int intLpcOrder, int intLpccOrder, boolean blnPerformPreprocessing) {
+    public LPC(int intLpcOrder, int intLpccOrder) {
     	this.intLpcOrder = intLpcOrder;
     	this.intLpccOrder = intLpccOrder;
-    	this.blnPerformPreprocessing = blnPerformPreprocessing;
     	
         reflectionCoeffs = null;
         ARParameters = null;
@@ -149,77 +86,138 @@ public class LPC {
     }
     
     /**
-     * Takes an audio signal or an autocorrelated sample, and computes the Linear Predictive Coding (LPC).
+     * Take samples from an audio signal and computes the Linear Predictive Coding (LPC)
+     * and LPCC (Linear Prediction Cepstral Coefficients).<br>
+     * <br>
+     * It starts processing the samples by performing pre-emphasis and framing.
      * 
-     * @param samples
+     * @param audioSignal
      */
-    public void process(double[] samples) {
-    	// LPC default extraction
-    	if (blnPerformPreprocessing) {
-	    	// Step 1 - Pre-Emphasis
-	        double[] preEmphasis = Preprocessing.preEmphasis(samples);
+    @Override
+    public void process(double[] audioSignal) {
+    	// Step 1 - Pre-Emphasis
+        double[] preEmphasis = Preprocessing.preEmphasis(audioSignal);
+        
+        // Step 2 - Frame Blocking
+        frames = Preprocessing.framing(preEmphasis, FRAME_LENGTH, OVERLAP_SAMPLES);
 	        
-	        // Step 2 - Frame Blocking
-	        frames = Preprocessing.framing(preEmphasis, FRAME_LENGTH, OVERLAP_SAMPLES);
-	        
-	        // Step 3 - Windowing - Apply Hamming Window to all frames
-	        FFT objFFT = new FFT(FRAME_LENGTH, WINDOW_FUNCTION);
-	        
-	        for (int indexFrame = 0; indexFrame < frames.length; indexFrame++) {
-	        	frames[indexFrame] = objFFT.applyWindow(frames[indexFrame]);
-	        }
-	        
-	    // LPC extraction without preprocessing
-	    // It is supposed to receive an autocorrelated sample
-    	} else {
-    		frames = new double[1][];
-    		frames[0] = samples;
-    	}
+        processFrames(frames);
+    }
+        
+	/**
+     * Computes the Linear Predictive Coding (LPC) and the LPCC (Linear Prediction Cepstral Coefficients) from audio frames.<br>
+     * <br>
+     * It assumes that pre-emphasis and framing have already been performed.
+     * 
+     * @param frames
+     */
+    @Override
+    public void processFrames(double[][] frames) {
+    	this.frames = frames;
+    	
+        // Step 3 - Windowing - Apply Hamming Window to all frames
+        FFT objFFT = new FFT(FRAME_LENGTH, WINDOW_FUNCTION);
+        
+        for (int indexFrame = 0; indexFrame < frames.length; indexFrame++) {
+        	frames[indexFrame] = objFFT.applyWindow(frames[indexFrame]);
+        }
         
         reflectionCoeffs = new double[frames.length][intLpcOrder + 1];
         ARParameters = new double[frames.length][intLpcOrder + 1];
         alpha = new double[frames.length];
         
+        double[] autoCorrelation;
+        
         // Below computations are all based on individual frames
         for (int indexFrame = 0; indexFrame < frames.length; indexFrame++) {
-        	double[] autoCorrelation = null;
-        	
-        	// Step 4 - Autocorrelation (LPC default extraction)
-        	if (blnPerformPreprocessing) {
-        		autoCorrelation = autoCorrelation(frames[indexFrame]);
-        	} else {
-        		autoCorrelation = frames[indexFrame];    // Autocorrelation already performed
-        	}
+            // Step 4 - Autocorrelation
+        	autoCorrelation = autoCorrelation(frames[indexFrame]);
         	
         	// Step 5 - Levinson Algorithm
         	levinsonDurbin(indexFrame, autoCorrelation);
         }
         
-        // Final LPC coefficients
-        lpc = new double[frames.length][intLpcOrder];
+        computeFinalLPC();
+        computeFinalLPCC();
+    }
+    
+    /**
+     * Returns the final LPC coefficients.
+     * 
+     * @return lpc
+     */
+    @Override
+    public double[][] getFeature() {
+    	return lpc;
+    }
+    
+    /**
+     * Returns the mean of the LPC coefficients.
+     * 
+     * @return lpcMean
+     */
+    @Override
+    public double[] getMean() {
+    	return lpcMean;
+    }
+    
+    /**
+     * Returns the standard deviation of the LPC coefficients.
+     * 
+     * @return lpcStandardDeviation
+     */
+    @Override
+    public double[] getStandardDeviation() {
+    	return lpcStandardDeviation;
+    }
+    
+    /**
+     * Returns the final LPCC coefficients.
+     * 
+     * @return lpcc
+     */
+    public double[][] getFeatureLpcc() {
+    	return lpcc;
+    }
+    
+    /**
+     * Returns the mean of the LPCC coefficients.
+     * 
+     * @return lpccMean
+     */
+    public double[] getMeanLpcc() {
+    	return lpccMean;
+    }
+    
+    /**
+     * Returns the standard deviation of the LPCC coefficients.
+     * 
+     * @return lpcStandardDeviation
+     */
+    public double[] getStandardDeviationLpcc() {
+    	return lpccStandardDeviation;
+    }
+    
+    /**
+     * Computes the Linear Predictive Coding (LPC) and the LPCC (Linear Prediction Cepstral Coefficients) from
+     * an autocorrelated frame.<br>
+     * <br>
+     * Basically, it is used in the Perceptual Linear Prediction (PLP) computation.
+     * 
+     * @param autocorrelatedFrame
+     */
+    public void processAutocorrelatedFrame(double[] autocorrelatedFrame) {
+    	this.frames = new double[1][];
+		this.frames[0] = autocorrelatedFrame;
     	
-    	for (int indexFrame = 0; indexFrame < frames.length; indexFrame++) {
-	    	for (int indexOrder = 0; indexOrder < intLpcOrder; indexOrder++) {
-	    		lpc[indexFrame][indexOrder] = RoundNumbers.round(ARParameters[indexFrame][indexOrder + 1]);
-	    	}
-    	}
-    	
-    	// Calculates mean and standard deviation for each LPC coefficient
-        meanLPC = new double[intLpcOrder];
-        standardDeviationLPC = new double[intLpcOrder];
+    	reflectionCoeffs = new double[1][intLpcOrder + 1];
+        ARParameters = new double[1][intLpcOrder + 1];
+        alpha = new double[1];
         
-        double[] coefficientValues;
+        levinsonDurbin(0, autocorrelatedFrame);
         
-    	for (int indexCoefficient = 0; indexCoefficient < intLpcOrder; indexCoefficient++) {
-    		coefficientValues = new double[frames.length];
-    		
-    		for (int indexFrame = 0; indexFrame < frames.length; indexFrame++) {
-    			coefficientValues[indexFrame] = lpc[indexFrame][indexCoefficient];
-    		}
-    		
-    		meanLPC[indexCoefficient] = Statistics.calculateMean(coefficientValues);
-    		standardDeviationLPC[indexCoefficient] = Statistics.calculateStandardDeviation(coefficientValues);
-    	}
+        computeFinalLPC();
+        computeFinalLPCC();
     }
     
     /**
@@ -300,7 +298,7 @@ public class LPC {
             }
             
             reflectionCoeffs[intIndexFrame][i] /= alpha[intIndexFrame];
-
+            
             for (int j = 1; j < i; j++) {
                 ARParameters[intIndexFrame][j] += reflectionCoeffs[intIndexFrame][i] * backwardPredictor[j];
             }
@@ -309,21 +307,49 @@ public class LPC {
             alpha[intIndexFrame] *= (1 - reflectionCoeffs[intIndexFrame][i] * reflectionCoeffs[intIndexFrame][i]);
         }
     }
+    
+    /**
+     * Computes the final Linear Predictive Coding (LPC) coefficients.
+     */
+    private void computeFinalLPC() {
+        lpc = new double[frames.length][intLpcOrder];
+    	
+    	for (int indexFrame = 0; indexFrame < frames.length; indexFrame++) {
+	    	for (int indexOrder = 0; indexOrder < intLpcOrder; indexOrder++) {
+	    		lpc[indexFrame][indexOrder] = RoundNumbers.round(ARParameters[indexFrame][indexOrder + 1], 4);
+	    	}
+    	}
+    	
+    	// Calculates mean and standard deviation for each LPC coefficient
+        lpcMean = new double[intLpcOrder];
+        lpcStandardDeviation = new double[intLpcOrder];
+        
+        double[] coefficientValues;
+        
+    	for (int indexCoefficient = 0; indexCoefficient < intLpcOrder; indexCoefficient++) {
+    		coefficientValues = new double[frames.length];
+    		
+    		for (int indexFrame = 0; indexFrame < frames.length; indexFrame++) {
+    			coefficientValues[indexFrame] = lpc[indexFrame][indexCoefficient];
+    		}
+    		
+    		lpcMean[indexCoefficient] = RoundNumbers.round(Statistics.calculateMean(coefficientValues), 4);
+    		lpcStandardDeviation[indexCoefficient] = RoundNumbers.round(Statistics.calculateStandardDeviation(coefficientValues), 4);
+    	}
+    }
 
     /**
      * Computes the LPC Cepstra (LPCC) from the AR predictor parameters and alpha using a recursion
      * invented by Oppenheim et al. The literature shows the optimal value of cepstral order to be:
      *
      * <pre>0.75 * intLpccOrder <= intLpccOrder <= 1.25 * intLpcOrder</pre>
-     * 
-     * <b>IMPORTANT: It is necessary to perform the <i>process()</i> method to get the LPCC coefficients.<b>
      */
-    public void processLPCC() {
+    private void computeFinalLPCC() {
         lpcc = new double[frames.length][intLpccOrder];
         
         for (int indexFrame = 0; indexFrame < frames.length; indexFrame++) {
-	        lpcc[indexFrame][0] = RoundNumbers.round(Math.log(alpha[indexFrame]));
-	        lpcc[indexFrame][1] = RoundNumbers.round(-ARParameters[indexFrame][1]);
+	        lpcc[indexFrame][0] = RoundNumbers.round(Math.log(alpha[indexFrame]), 4);
+	        lpcc[indexFrame][1] = RoundNumbers.round(-ARParameters[indexFrame][1], 4);
 	        
 	        int i;
 	        double dblSum;
@@ -335,7 +361,7 @@ public class LPC {
 	            	dblSum += ARParameters[indexFrame][j] * lpcc[indexFrame][i - j] * (i - j);
 	            }
 	            
-	            lpcc[indexFrame][i] = RoundNumbers.round(-dblSum / i);
+	            lpcc[indexFrame][i] = RoundNumbers.round((-dblSum / i), 4);
 	        }
 	        
 	        // Only if intLpcOrder > intLpcOrder + 1
@@ -346,13 +372,13 @@ public class LPC {
 	            	dblSum += ARParameters[indexFrame][j] * lpcc[indexFrame][i - j] * (i - j);
 	            }
 	            
-	            lpcc[indexFrame][i] = RoundNumbers.round(-dblSum / i);
+	            lpcc[indexFrame][i] = RoundNumbers.round((-dblSum / i), 4);
 	        }
         }
         
         // Calculates mean and standard deviation for each LPCC coefficient
-        meanLPCC = new double[intLpccOrder];
-        standardDeviationLPCC = new double[intLpccOrder];
+        lpccMean = new double[intLpccOrder];
+        lpccStandardDeviation = new double[intLpccOrder];
         
         double[] coefficientValues;
         
@@ -363,8 +389,8 @@ public class LPC {
     			coefficientValues[indexFrame] = lpcc[indexFrame][indexCoefficient];
     		}
     		
-    		meanLPCC[indexCoefficient] = Statistics.calculateMean(coefficientValues);
-    		standardDeviationLPCC[indexCoefficient] = Statistics.calculateStandardDeviation(coefficientValues);
+    		lpccMean[indexCoefficient] = RoundNumbers.round(Statistics.calculateMean(coefficientValues), 4);
+    		lpccStandardDeviation[indexCoefficient] = RoundNumbers.round(Statistics.calculateStandardDeviation(coefficientValues), 4);
     	}
     }
 }

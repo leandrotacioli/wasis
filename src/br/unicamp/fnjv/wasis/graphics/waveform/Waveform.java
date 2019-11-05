@@ -16,7 +16,7 @@ import br.unicamp.fnjv.wasis.multimidia.wav.AudioWav;
  * Processa o waveform de um arquivo de áudio.
  * 
  * @author Leandro Tacioli
- * @version 3.0 - 30/Mar/2016
+ * @version 4.0 - 27/Out/2017
  */
 public class Waveform {
 	private AudioWav objAudioWav;               // Objeto do Áudio WAV
@@ -47,12 +47,30 @@ public class Waveform {
 	private BufferedImage waveformImageFinal;
 
 	/**
+	 * Retorna o comprimento do painel onde o waveform será desenhado.
+	 * 
+	 * @return intPainelWidth
+	 */
+	public int getPanelWidth() {
+		return intPanelWidth;
+	}
+	
+	/**
 	 * Altera o comprimento do componente onde o waveform será desenhado.
 	 * 
 	 * @param intPanelWidth
 	 */
 	public void setPanelWidth(int intPanelWidth) {
 		 this.intPanelWidth = intPanelWidth;
+	}
+	
+	/**
+	 * Retorna a altura do painel onde o waveform será desenhado.
+	 * 
+	 * @return intPanelHeight
+	 */
+	public int getPanelHeight() {
+		return intPanelHeight;
 	}
 
 	/**
@@ -151,10 +169,12 @@ public class Waveform {
      * Processa o waveform de um arquivo de áudio.
      * 
      * @param objAudioWav - Objeto do áudio WAV
+     * 
+	 * @throws CloneNotSupportedException 
      */
-	public Waveform(AudioWav objAudioWav) {
-		this.objAudioWav = objAudioWav;
-
+	public Waveform(AudioWav objAudioWav) throws CloneNotSupportedException {
+		this.objAudioWav = (AudioWav) objAudioWav.clone();
+		
 		this.intInitialChunkToProcess = 0;
         this.intFinalChunkToProcess = objAudioWav.getNumSamplesPerChannel();
 		
@@ -171,7 +191,7 @@ public class Waveform {
     		blnIsRenderingWaveform = true;
     	
 	    	waveformImage = new BufferedImage(intPanelWidth, intPanelHeight, BufferedImage.TYPE_INT_RGB);
-	
+	    	
 	        Graphics2D graphics2D = waveformImage.createGraphics();
 	        graphics2D.setPaint(new Color(255, 255, 255));
 	        graphics2D.fillRect(0, 0, intPanelWidth, intPanelHeight);
@@ -204,7 +224,7 @@ public class Waveform {
 	        int[] arrayAmplitudeMaxValues;
 	        
 	        objAudioWav.extractWavDataChunk(intInitialChunk);
-	
+	        
 	        // ***********************************************************************************************
 	    	for (int indexWidth = 0; indexWidth < intPanelWidth; indexWidth++) {
 	    		arrayAmplitudeMaxValues = getAmplitudesMaximumValues(intInitialChunk, intFinalChunk);
@@ -220,7 +240,7 @@ public class Waveform {
 	    			} else {
 	    				dblVariationWave = indexPosition - intWaveformMiddle;  // Negativas
 	    			}
-	    			
+
 	    			waveformImage.setRGB(indexWidth, indexPosition, getRGBColor(dblVariationWave, dblVariationColorPerPixel));
 	    		}
 	    		
@@ -258,9 +278,7 @@ public class Waveform {
         double dblPositiveAmplitude = 0;
         double dblNegativeAmplitude = 0;
         
-        int intChannel = 1;
-        
-        double[] originalAmplitudes = objAudioWav.getAmplitudesChunk(intChannel, intInitialChunk, intFinalChunk);
+        double[] originalAmplitudes = objAudioWav.getAmplitudesChunk(intInitialChunk, intFinalChunk);
         
         for (int indexOriginalAmplitudes = 0; indexOriginalAmplitudes < originalAmplitudes.length; indexOriginalAmplitudes++) {
         	double dblAmplitude = originalAmplitudes[indexOriginalAmplitudes];
@@ -352,22 +370,17 @@ public class Waveform {
     /**
      * Ajusta o tamanho do waveform final no painel.<br>
      * <br>
-     * A variável <i>waveformImageFinal</i> é alterada para
-     * o tamanho final.
-     * 
-     * @param waveformImageToScale - Imagem do espectrograma a ser ajustada
-     * @param intImageWidth        - Comprimento final da imagem
-     * @param intImageHeight       - Altura final da imagem
+     * A variável <i>waveformImageFinal</i> é alterada para o tamanho final.
      */
-    protected void scaleFinalImage(final BufferedImage waveformImageToScale, int intImageWidth, int intImageHeight) {
-        BufferedImage imageToScale = new BufferedImage(intImageWidth, intImageHeight, BufferedImage.TYPE_INT_RGB);
+    protected void scaleFinalImage() {
+        BufferedImage imageToScale = new BufferedImage(intPanelWidth, intPanelHeight, BufferedImage.TYPE_INT_RGB);
     	
         final Graphics2D graphics2D = imageToScale.createGraphics();
         graphics2D.setComposite(AlphaComposite.Src);
         graphics2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         graphics2D.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        graphics2D.drawImage(waveformImageToScale, 0, 0, intImageWidth, intImageHeight, null);
+        graphics2D.drawImage(waveformImage, 0, 0, intPanelWidth, intPanelHeight, null);
         graphics2D.dispose();
         
         waveformImageFinal = imageToScale;

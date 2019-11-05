@@ -44,6 +44,8 @@ Please visit http://ocvolume.sourceforge.net.
 
 package br.unicamp.fnjv.wasis.classifiers.hmm.vq;
 
+import java.io.Serializable;
+
 import br.unicamp.fnjv.wasis.classifiers.hmm.db.DataBase;
 import br.unicamp.fnjv.wasis.classifiers.hmm.db.ObjectIODataBase;
 
@@ -60,7 +62,9 @@ import br.unicamp.fnjv.wasis.classifiers.hmm.db.ObjectIODataBase;
  * 
  * @modified-by Ganesh Tiwari : DB Operations last updated on Dec-27,2010
  */
-public class Codebook implements Cloneable {
+public class Codebook implements Serializable, Cloneable {
+	private static final long serialVersionUID = 1243587036568272064L;
+	
 	/** split factor (should be in the range of 0.01 <= SPLIT <= 0.05) */
 	protected final double SPLIT = 0.01;
 	
@@ -78,6 +82,12 @@ public class Codebook implements Cloneable {
 	
 	/** dimension = number of features */
 	protected int dimension;
+	
+	protected boolean blnHasEnoughTrainingPoints;
+	
+	public boolean getHasEnoughTrainingPoints() {
+		return blnHasEnoughTrainingPoints;
+	}
 
 	/**
 	 * constructor to train a Codebook with given training points and Codebook
@@ -94,10 +104,12 @@ public class Codebook implements Cloneable {
 
 		// make sure there are enough training points to train the Codebook
 		if (points.length >= intCodebookSize) {
+			blnHasEnoughTrainingPoints = true;
 			dimension = points[0].getDimension();
 			initialize();
 		} else {
-			System.out.println("err: not enough training points");
+			blnHasEnoughTrainingPoints = false;
+			//System.out.println("err: not enough training points");
 		}
 	}
 
@@ -114,10 +126,12 @@ public class Codebook implements Cloneable {
 		
 		// make sure there are enough training points to train the Codebook
 		if (points.length >= intCodebookSize) {
+			blnHasEnoughTrainingPoints = true;
 			dimension = points[0].getDimension();
 			initialize();
 		} else {
-			System.out.println("err: not enough training points");
+			blnHasEnoughTrainingPoints = false;
+			//System.out.println("err: not enough training points");
 		}
 	}
 	
@@ -143,14 +157,14 @@ public class Codebook implements Cloneable {
 	 * called by: volume
 	 */
 	public Codebook() {
-		DataBase objDb = new ObjectIODataBase();
-		objDb.setType("cbk");
+		//DataBase objDb = new ObjectIODataBase();
+		//objDb.setType("cbk");
 		
-		CodebookDictionary objCodebookDictionary = new CodebookDictionary();
-		objCodebookDictionary = (CodebookDictionary) objDb.readModel(null, null);
+		//CodebookDictionary objCodebookDictionary = new CodebookDictionary();
+		//objCodebookDictionary = (CodebookDictionary) objDb.readModel(null, null);
 		
-		dimension = objCodebookDictionary.getDimension();
-		centroids = objCodebookDictionary.getCentroid();
+		//dimension = objCodebookDictionary.getDimension();
+		//centroids = objCodebookDictionary.getCentroid();
 	}
 	
 	/**
@@ -208,7 +222,8 @@ public class Codebook implements Cloneable {
 	 * calls: none<br>
 	 * called by: train
 	 */
-	public void saveToFile(String strFilePath, String strFileName) {
+	@SuppressWarnings("unused")
+	private void saveToFile(String strFilePath, String strFileName) {
 		DataBase objDB = new ObjectIODataBase();
 		objDB.setType("cbk");
 		
@@ -224,6 +239,26 @@ public class Codebook implements Cloneable {
 		objCodebookDictionary.setCentroid(centroids);
 		
 		objDB.saveModel(objCodebookDictionary, strFilePath, strFileName);
+	}
+	
+	public CodebookDictionary getCodebookDictionary() {
+		CodebookDictionary objCodebookDictionary = new CodebookDictionary();
+		
+		// No need to save all the points,
+		// Must be removed in objectIO, to reduce the size of file
+		for (int i = 0; i < centroids.length; i++) {
+			centroids[i].pts.removeAllElements();
+		}
+		
+		objCodebookDictionary.setDimension(dimension);
+		objCodebookDictionary.setCentroid(centroids);
+		
+		return objCodebookDictionary;
+	}
+	
+	public void loadCodebookDictionary(CodebookDictionary objCodebookDictionary) {
+		dimension = objCodebookDictionary.getDimension();
+		centroids = objCodebookDictionary.getCentroid();
 	}
 
 	/**

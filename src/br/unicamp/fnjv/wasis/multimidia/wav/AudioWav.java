@@ -16,7 +16,7 @@ import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import javax.swing.SwingWorker;
 
-import br.unicamp.fnjv.wasis.audio.temporary.AudioTemporary;
+import br.unicamp.fnjv.wasis.audio.AudioTemporary;
 import br.unicamp.fnjv.wasis.libs.FileManager;
 import br.unicamp.fnjv.wasis.main.WasisParameters;
 import br.unicamp.fnjv.wasis.multimidia.ffmpegwrapper.FfmpegEncoder;
@@ -27,7 +27,7 @@ import br.unicamp.fnjv.wasis.swing.WasisMessageBox;
  * Carrega e processa os dados de um arquivo de áudio.
  * 
  * @author Leandro Tacioli
- * @version 3.3 - 24/Fev/2017
+ * @version 3.5 - 27/Out/2017
  */
 public class AudioWav implements Cloneable {
 	private ResourceBundle rsBundle = WasisParameters.getInstance().getBundle();
@@ -35,6 +35,8 @@ public class AudioWav implements Cloneable {
 	private AudioWavHeader audioWavHeader;       // Especificações do header do arquivo WAV
 	
     private AudioInputStream audioInputStream;   // Fluxo do áudio
+    
+    private int intAudioTemporaryIndex;          // Índice do arquivo WAV na lista de arquivos temporários da memória
     
     private String strAudioFilePathOriginal;     // Caminho do arquivo de áudio original
     private String strAudioFileHashOriginal;     // Hash do arquivo de áudio original
@@ -87,6 +89,22 @@ public class AudioWav implements Cloneable {
     private final int BUFFER_LENGTH = (int) Math.pow(2, 12);
     
     /**
+     * Retorna o índice do arquivo WAV na lista de arquivos temporários da memória.
+     * 
+     * @return intAudioTemporaryIndex
+     */
+    public int getAudioTemporaryIndex() {
+    	return intAudioTemporaryIndex;
+    }
+    
+    /**
+     * Atualiza o índice do arquivo WAV na lista de arquivos temporários da memória.
+     */
+    public void updateAudioTemporaryIndex() {
+    	this.intAudioTemporaryIndex = AudioTemporary.getAudioTemporaryIndex(this);
+    }
+    
+    /**
      * Retorna o caminho do arquivo de áudio original.
      * 
      * @return strAudioFilePathOriginal
@@ -94,7 +112,7 @@ public class AudioWav implements Cloneable {
     public String getAudioFilePathOriginal() {
     	return strAudioFilePathOriginal;
     }
-    
+
     /**
      * Retorna o hash do arquivo de áudio original.
      * 
@@ -231,11 +249,13 @@ public class AudioWav implements Cloneable {
      */
     public AudioWav(String strAudioFilePath) {
     	try {
+    		this.intAudioTemporaryIndex = -1;
+    		
     		this.strAudioFilePathOriginal = strAudioFilePath;
-			//this.strAudioFileHashOriginal = FileManager.getFileHash(new File(strAudioFilePath));
+			this.strAudioFileHashOriginal = FileManager.getFileHash(new File(strAudioFilePath));
 			
 			this.strAudioFilePathTemporary = strAudioFilePathOriginal;
-			//this.strAudioFileHashTemporary = strAudioFileHashOriginal;
+			this.strAudioFileHashTemporary = strAudioFileHashOriginal;
 			
 	    	this.intStatus = LOAD_STATUS_UNKNOWN;
 		} catch (Error | Exception e) {
@@ -273,6 +293,9 @@ public class AudioWav implements Cloneable {
 	    	        intNumSamples = intWavDataSize / audioWavHeader.getBytesPerSample();
 	    	        intNumSamplesPerChannel = intNumSamples / audioWavHeader.getChannels();
 	    	        intStatus = LOAD_STATUS_LOADED;
+	    	        
+	    	        updateAudioTemporaryIndex();
+	    	        
 	    	        blnStatusLoaded = true;
 	        	}
 	        	
@@ -423,7 +446,7 @@ public class AudioWav implements Cloneable {
     /**
      * Retorna o tamanho total (em bytes) do arquivo WAV a ser processado.<br>
      * <br>
-     * O tamanho do <i>header</i> do arquivo é desconsiderado.
+     * O tamanho do <i>Header</i> do arquivo é desconsiderado.
      * 
      * @return intWavDataSize
      */
@@ -485,6 +508,20 @@ public class AudioWav implements Cloneable {
     	
     	return intChunkDataPosition;
     }
+    
+    /**
+     * Retorna as amplitudes do arquivo WAV, separando elas entre os diferentes canais
+     * e retornando apenas as amplitudes do canal parametrizado.
+     * Extrai apenas as amplitudes entre os pedaços inicial e final.
+     * 
+     * @param intInitialChunk - Pedaço inicial (valor da amostra 'sample' baseado no tempo do áudio)
+     * @param intFinalChunk   - Pedaço final (valor da amostra 'sample' baseado no tempo do áudio)
+     * 
+     * @return amplitudes[]
+     */
+    public double[] getAmplitudesChunk(int intInitialChunk, int intFinalChunk) {
+    	return getAmplitudesChunk(1, intInitialChunk, intFinalChunk);
+    }
 
     /**
      * Retorna as amplitudes do arquivo WAV, separando elas entre os diferentes canais
@@ -497,7 +534,7 @@ public class AudioWav implements Cloneable {
      * 
      * @return amplitudes[]
      */
-    public double[] getAmplitudesChunk(int intChannel, int intInitialChunk, int intFinalChunk) {
+    private double[] getAmplitudesChunk(int intChannel, int intInitialChunk, int intFinalChunk) {
     	int intInitialChunkData = getChunkDataPosition(intInitialChunk);
         int intFinalChunkData = getChunkDataPosition(intFinalChunk);
         
@@ -521,10 +558,8 @@ public class AudioWav implements Cloneable {
 
         for (int indexTotalChunks = intInitialChunk; indexTotalChunks <= intFinalChunk; indexTotalChunks++) {
         	for (int indexNumChannels = 1; indexNumChannels <= intNumChannels; indexNumChannels++) {
-        		
         		// Apenas o canal parametrizado é processado
         		if (intChannel == indexNumChannels) {
-        			
         			try {
 		        		// 8 bits
 		        		if (audioWavHeader.getBitsPerSample() == 8) {

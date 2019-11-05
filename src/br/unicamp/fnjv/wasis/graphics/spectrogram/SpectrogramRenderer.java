@@ -12,11 +12,10 @@ import br.unicamp.fnjv.wasis.dsp.FFTParameters;
 import br.unicamp.fnjv.wasis.features.PowerSpectrumValues;
 
 /**
- * Classe responsável pela renderização e 
- * criação das imagens do espectrograma.
+ * Classe responsável pela renderização e criação das imagens do espectrograma.
  * 
  * @author Leandro Tacioli
- * @version 2.2 - 02/Set/2015
+ * @version 3.0 - 19/Set/2017
  */
 public class SpectrogramRenderer {
 	private Spectrogram objSpectrogram;
@@ -25,20 +24,12 @@ public class SpectrogramRenderer {
 	 * Tipos de renderização permitida no espectrograma.<br>
 	 * <br>
 	 * 0 - RENDER_DEFAULT = Renderização padrão do espectrograma. <br>
-	 * 1 - RENDER_TEMPORARY = Renderização para imagens temporárias do espectrograma. <br>
-	 * 2 - RENDER_COMPARISON = Renderização para extração de dados para comparação e/ou gravação no banco de dados.
+	 * 1 - RENDER_TEMPORARY = Renderização para imagens temporárias do espectrograma.
 	 */
 	private int intRenderType;
 	
 	private int intInitialFrequencyFrame;      // Frame de frequência inicial
 	private int intFinalFrequencyFrame;        // Frame de frequência final
-	
-	private long lgnMaximumAmplitude;          // Amplitude máxima encontrada no arquivo de áudio
-	
-	private double dblMinimumIntensity;        // Intensidade mínima (dB) encontrada no arquivo de áudio
-	private double dblMaximumIntensity;        // Intensidade máxima (dB) encontrada no arquivo de áudio
-	
-	private double dblMaximumFrequency;        // Frequência máxima encontrada no arquivo de áudio
 	
 	/**
 	 * Lista com as intensidades do arquivo de áudio
@@ -46,7 +37,7 @@ public class SpectrogramRenderer {
 	private List<SpectrogramRendererIntensities> lstIntensities;
 	
 	/**
-	 * Lista com os valores de frequência e a intensidade máxima (dB) para cada faixa de frequência.
+	 * Lista com os valores de frequência e a intensidade máxima (dBFS) para cada faixa de frequência.
 	 */
 	private List<PowerSpectrumValues> lstAudioComparisonValues;
 	
@@ -63,67 +54,12 @@ public class SpectrogramRenderer {
 	 * Retorna o tipo de renderização do espectrograma solicitada. <br>
 	 * <br>
 	 * 0 - RENDER_DEFAULT = Renderização padrão do espectrograma. <br>
-	 * 1 - RENDER_TEMPORARY = Renderização para imagens temporárias do espectrograma. <br>
-	 * 2 - RENDER_COMPARISON = Renderização para extração de dados para comparação e/ou gravação no banco de dados.
+	 * 1 - RENDER_TEMPORARY = Renderização para imagens temporárias do espectrograma.
 	 * 
 	 * @return intRenderType
 	 */
 	protected int getRenderType() {
 		return intRenderType;
-	}
-	
-	/**
-	 * Retorna a amplitude máxima encontrada no arquivo de áudio.
-	 * 
-	 * @return lgnMaximumAmplitude
-	 */
-	protected long getMaximumAmplitude() {
-		return lgnMaximumAmplitude;
-	}
-	
-	/**
-	 * Retorna o valor da intensidade mínima encontrada no arquivo de áudio.
-	 * 
-	 * @return dblMinimumIntensity
-	 */
-	protected double getMinimumIntensity() {
-		return dblMinimumIntensity;
-	}
-
-	/**
-	 * Altera o valor da intensidade mínima encontrada no arquivo de áudio.
-	 * 
-	 * @param dblMinimumIntensity
-	 */
-	protected void setMinimumIntensity(double dblMinimumIntensity) {
-		this.dblMinimumIntensity = dblMinimumIntensity;
-	}
-	
-	/**
-	 * Retorna o valor da intensidade máxima encontrada no arquivo de áudio.
-	 * 
-	 * @return dblMaximumIntensity
-	 */
-	protected double getMaximumIntensity() {
-		return dblMaximumIntensity;
-	}
-
-	/**
-	 * Altera o valor da intensidade máxima encontrada no arquivo de áudio.
-	 * 
-	 * @param dblMaximumIntensity
-	 */
-	protected void setMaximumIntensity(double dblMaximumIntensity) {
-		this.dblMaximumIntensity = dblMaximumIntensity;
-	}
-	
-	/**
-	 * Retorna o valor da frequência máxima encontrada no arquivo de áudio.
-	 * 
-	 * @return dblMaximumFrequency
-	 */
-	protected double getMaximumFrequency() {
-		return dblMaximumFrequency;
 	}
 	
 	/**
@@ -146,26 +82,6 @@ public class SpectrogramRenderer {
 	protected SpectrogramRenderer(Spectrogram objSpectrogram, int intRenderType) {
 		this.objSpectrogram = objSpectrogram;
 		this.intRenderType = intRenderType;
-		
-		// Inicializa lista com os valores de frequência e a intensidade máxima (dB) para cada faixa de frequência
-		if (this.intRenderType == getSpectrogram().RENDER_COMPARISON) {
-			int intFrequencySamples = FFTParameters.FFT_SAMPLE_SIZE_COMPARISON / 2;
-	    	
-	    	dblMaximumFrequency = (double) objSpectrogram.getMaximumFrequency();
-	    	
-	    	lstAudioComparisonValues = new ArrayList<PowerSpectrumValues>();
-	    	
-	    	for (int indexFrequency = intFrequencySamples - 1; indexFrequency >= 0; indexFrequency--) {
-	    		double dblFrequency = objSpectrogram.getMaximumFrequency() - (dblMaximumFrequency / (double) intFrequencySamples * indexFrequency);
-	    		int intFrequency = (int) dblFrequency;
-	    		
-	    		lstAudioComparisonValues.add(new PowerSpectrumValues(intFrequency, -100000));
-	        }
-		}
-
-		lgnMaximumAmplitude = Math.abs(1 << (objSpectrogram.getAudioWav().getWavHeader().getBitsPerSample() - 1));
-    	
-    	dblMaximumIntensity = Double.MIN_VALUE;
 	}
 	
 	/**
@@ -183,12 +99,6 @@ public class SpectrogramRenderer {
 	    	// o número final de pixels corresponda ao tamanho do painel;
 			double dblMillisecondsPerPixel = FFTParameters.getInstance().getMillisecondsPerPixel(FFTParameters.getInstance().getFFTSampleSize());
 			
-			// Caso a tipo de renderização seja para comparação, o valor de milisegundos por pixel
-			// será baseado na constante 'FFTParameters.FFT_SAMPLE_SIZE_COMPARISON'
-			if (intRenderType == getSpectrogram().RENDER_COMPARISON) {
-				dblMillisecondsPerPixel = FFTParameters.getInstance().getMillisecondsPerPixel(FFTParameters.FFT_SAMPLE_SIZE_COMPARISON);
-			}
-			
 			int intFrameSize = getFrameSize(dblMillisecondsPerPixel);  // Tamanho final do frame (em samples)
 	    	int intFrameShift = getFrameShift(intFrameSize);
 	    	int intOverlapBackSamples = intFrameSize - intFrameShift;  // Número de amostras que serão retornadas quando houver OVERLAP
@@ -200,7 +110,8 @@ public class SpectrogramRenderer {
 	    	int intInitialChunkProcessing = intInitialChunkToProcess;                      // Pedaço inicial do áudio em processamento
 			int intFinalChunkProcessing = intInitialChunkProcessing + intFrameSize - 1;    // Pedaço final do áudio em processamento
 	    	
-			// Caso a imagem tenha um tamanho grande e a renderização seja a padrão
+			// Ajusta o 'Frame Size' e o 'Frame Shift' ao painel
+			// caso a imagem tenha um tamanho grande e a renderização seja a padrão
 	    	if (!objSpectrogram.getIsShortTemporaryImage() && intRenderType == objSpectrogram.RENDER_DEFAULT) {
 		    	boolean blnAdjustSpectrogram = true;
 		    	
@@ -212,7 +123,6 @@ public class SpectrogramRenderer {
 		    		
 		    		// Realiza a leitura do arquivo até chegar ao final do pedaço de áudio a ser processado
 		    		for (int indexChunkProcessing = intInitialChunkProcessing; indexChunkProcessing <= intFinalChunkToProcess;) {
-		    			
 		    			// Sem OVERLAP
 			    		if (FFTParameters.getInstance().getFFTOverlapFactor() == 0) {
 			    			intInitialChunkProcessing += intFrameSize;
@@ -252,8 +162,8 @@ public class SpectrogramRenderer {
 	        // Retorna a quantidade total de processadores (núcleos) que poderão ser utilizados no carregamento do espectrograma
 	     	int intNumberProcessors = Runtime.getRuntime().availableProcessors();
 	     	
-	     	if (intRenderType != objSpectrogram.RENDER_DEFAULT && intNumberProcessors > 1) {
-	     		//intNumberProcessors = intNumberProcessors - 1;
+	     	if (intRenderType == objSpectrogram.RENDER_TEMPORARY && intNumberProcessors > 1) {
+	     		intNumberProcessors = intNumberProcessors - 1;
 	     	}
 	     	
 	     	// É criada uma pool com uma thread para cada processador disponível para o carregamento do espectrograma
@@ -272,32 +182,25 @@ public class SpectrogramRenderer {
 				
 				// ***********************************************************************************************
 				// Pedaços iniciais e finais são atualizados a cada loop
-				if (intRenderType != objSpectrogram.RENDER_COMPARISON) {
-					
-					// Sem OVERLAP
-		    		if (FFTParameters.getInstance().getFFTOverlapFactor() == 0) {
-		    			intInitialChunkProcessing += intFrameSize;
-		    			intFinalChunkProcessing += intFrameSize;
-		    		
-		    		// Com OVERLAP
-		    		} else {
-		    			intInitialChunkProcessing = intFinalChunkProcessing - intOverlapBackSamples + 1;
-		    			intFinalChunkProcessing = intInitialChunkProcessing + intFrameSize - 1;
-		    		}
-		    		
-				} else if (intRenderType == objSpectrogram.RENDER_COMPARISON) {
-		    		intInitialChunkProcessing = intFinalChunkProcessing - intOverlapBackSamples + 1;
-		    		intFinalChunkProcessing = intInitialChunkProcessing + intFrameSize - 1;
-				}
-
+				// Sem OVERLAP
+	    		if (FFTParameters.getInstance().getFFTOverlapFactor() == 0) {
+	    			intInitialChunkProcessing += intFrameSize;
+	    			intFinalChunkProcessing += intFrameSize;
+	    		
+	    		// Com OVERLAP
+	    		} else {
+	    			intInitialChunkProcessing = intFinalChunkProcessing - intOverlapBackSamples + 1;
+	    			intFinalChunkProcessing = intInitialChunkProcessing + intFrameSize - 1;
+	    		}
+	    		
 	    		indexChunkProcessing = intInitialChunkProcessing;
 			}
 			
 			executorService.shutdown();
 			executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);  // Aguarda finalizar todas as threads
 			
-	    	Collections.sort(lstIntensities); // Ordena a lista de intensidades
-			
+	    	Collections.sort(lstIntensities);   // Ordena a lista de intensidades
+	    	
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -312,7 +215,7 @@ public class SpectrogramRenderer {
      */
     private int getFrameSize(double dblMillisecondsPerPixel) {
     	int intFrameSize = (int) (objSpectrogram.getAudioWav().getNumSamplesPerChannel() / (objSpectrogram.getAudioWav().getTotalTime() / dblMillisecondsPerPixel));
-
+    	
     	return intFrameSize;
     }
     
@@ -336,7 +239,7 @@ public class SpectrogramRenderer {
   
 	/**
 	 * Adiciona as intensidades à lista <i>lstIntensities</i>
-	 * quando uma thread da pool for finalizada.
+	 * quando uma thread da pool é finalizada.
 	 * 
 	 * @param intInitialChunk
 	 * @param intensities
@@ -360,25 +263,31 @@ public class SpectrogramRenderer {
         
         double[] intensities;
         
-        // ******************************************************************************************************
+        int[] intRGB;
+
+        int[] decibelValues = SpectrogramColorDisplay.DECIBEL_VALUES;
+        int[][] spectrogramColorDisplay = SpectrogramColorDisplay.getSpectrogramColor();
+        
     	for (int indexTimeFrame = 0; indexTimeFrame < intTimeFrames; indexTimeFrame++) {
     		intensities = lstIntensities.get(indexTimeFrame).getIntensities();
-
+    		
             for (int indexFrequencyFrame = intInitialFrequencyFrame; indexFrequencyFrame < intFinalFrequencyFrame; indexFrequencyFrame++) {
-            	//double dblDecibel = intensities[indexFrequencyFrame] - 96.00d; // 96dB range para 16 bits
-            	double dblDecibel = intensities[indexFrequencyFrame]; // Adiciona o range na FFT
+            	double dblDecibel = intensities[indexFrequencyFrame];
             	
-            	int[] intRGB = new int[]{0, 0, 0};
+            	intRGB = new int[] {0, 0, 0};
             	
-            	int[] intInitialGradient = new int[] {255, 255, 255};
-        		int[] intFinalGradient = new int[] {0, 0, 0};
-            	
-        		if (dblDecibel >= 0) {
-        			intRGB = intFinalGradient;
-        		} else if (dblDecibel < -100) {
-        			intRGB = intInitialGradient;
+            	if (dblDecibel >= decibelValues[0]) {
+        			intRGB = spectrogramColorDisplay[0];
+        		} else if (dblDecibel <= decibelValues[decibelValues.length - 1]) {
+        			intRGB = spectrogramColorDisplay[decibelValues.length - 1];
         		} else {
-        			intRGB = getSpectrogramColor(dblDecibel, -100, 0, intInitialGradient, intFinalGradient);
+	            	for (int intIndexDecibel = decibelValues[0]; intIndexDecibel < decibelValues.length - 1; intIndexDecibel++) {
+	            		if (dblDecibel <= decibelValues[intIndexDecibel] && dblDecibel > decibelValues[intIndexDecibel + 1]) {
+	            			intRGB = getSpectrogramColor(dblDecibel, decibelValues[intIndexDecibel + 1], decibelValues[intIndexDecibel], spectrogramColorDisplay[intIndexDecibel + 1], spectrogramColorDisplay[intIndexDecibel]);
+	            			
+	            			break;
+	            		}
+	            	}
         		}
             	
             	int intRGBValue = ((intRGB[0] << 16) & 0xff0000) | ((intRGB[1] << 8) & 0xff00) | (intRGB[2] & 0xff);
@@ -407,7 +316,7 @@ public class SpectrogramRenderer {
     	
     	// Normaliza para valores entre 0 >= x <= 1
     	double dblNormalized = (double) (dblDecibel - dblMinimumValue) / (dblMaximumValue - dblMinimumValue);
-    
+    	
     	// Cria um gradiente levando em consideração a cor inicial e final
 		intRGB[0] = (int)((double) intInitialGradient[0] * (1.0d - dblNormalized) + (double) intFinalGradient[0] * dblNormalized); // Red
 		intRGB[1] = (int)((double) intInitialGradient[1] * (1.0d - dblNormalized) + (double) intFinalGradient[1] * dblNormalized); // Green
@@ -417,8 +326,7 @@ public class SpectrogramRenderer {
     }
 
     /**
-     * Retorna o número de caixas de frequência que 
-     * serão utilizadas na renderização do espectrograma.
+     * Retorna o número de caixas de frequência que serão utilizadas na renderização do espectrograma.
      * 
      * @param blnAllFrequencyFrames - Considera todos os frames de frequência
      * 

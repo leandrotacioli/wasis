@@ -5,38 +5,53 @@ import java.awt.Frame;
 import java.awt.Image;
 import java.io.File;
 import java.io.IOException;
-import java.sql.ResultSet;
 import java.util.Date;
+import java.util.Locale;
 import java.util.ResourceBundle;
 
 import javax.imageio.ImageIO;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 
-import br.unicamp.fnjv.wasis.database.DatabaseConnection;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
-import com.leandrotacioli.libs.LTDataTypes;
 import com.leandrotacioli.libs.LTParameters;
+
+import br.unicamp.fnjv.wasis.database.jdbc.DatabaseConnection;
 
 /**
  * Carrega os parâmetros principais do Wasis.
  * 
  * @author Leandro Tacioli
- * @version 1.2 - 31/Mar/2015 
+ * @version 2.0 - 27/Out/2017
  */
 public class WasisParameters {
 	private static WasisParameters objWasisParameters;
 	
 	private ResourceBundle rsBundle;
 	
-	private boolean blnDatabaseStatus;
-	
 	private String strWasisUser;
+	private String strLanguage;
 	private String strLastFilePath;
-	//private String strLanguage;
-	
-	//private Locale locale;
+	private boolean blnFullWaveform;
+	private String strSpectrogramColorDisplay;
+
+	private boolean blnDatabaseStatus;
+	private String strDatabaseEngine;
+	private String strDatabaseServer;
+	private String strDatabaseName;
+	private String strDatabaseUser;
+	private String strDatabasePassword;
 	
 	private Date dateInstance;
-	
 	
 	private final Color COLOR_COMPONENT = new Color(225, 225, 225);
 	
@@ -45,6 +60,9 @@ public class WasisParameters {
 	
 	public static final Color COLOR_BACKGROUND_PANEL_TOP_GRADIENT = new Color(190, 190, 190);
 	public static final Color COLOR_BACKGROUND_PANEL_BOTTOM_GRADIENT = new Color(240, 240, 240);
+	
+	public static final String LANGUAGUE_PORTUGUESE = "Português";
+	public static final String LANGUAGUE_ENGLISH = "English";
 	
 	/**
 	 * Pasta de arquivos temporários.
@@ -61,20 +79,16 @@ public class WasisParameters {
 	}
 	
 	/**
-	 * Retorna o status de conexão com o banco de dados. <br>
-	 * <br>
-	 * <i>True</i> - Conexão estabelecida
-	 * <br>
-	 * <i>False</i> - Conexão falha
+	 * Retorna o usuário que está utilizando o WASIS.
 	 * 
-	 * @return blnDatabaseStatus
+	 * @return strLanguage
 	 */
-	public boolean getDatabaseStatus() {
-		return blnDatabaseStatus;
+	public String getLanguage() {
+		return strLanguage;
 	}
 	
 	/**
-	 * Retorna o usuário que está utilizando o WASIS.
+	 * Retorna a linguagem está utilizando o WASIS.
 	 * 
 	 * @return strWasisUser
 	 */
@@ -92,6 +106,109 @@ public class WasisParameters {
 	}
 	
 	/**
+	 * Altera o caminho do último arquivo de áudio carregado no sistema.
+	 * 
+	 * @param strLastFilePath
+	 */
+	protected void setLastFilePath(String strLastFilePath) {
+		this.strLastFilePath = strLastFilePath;
+	}
+	
+	/**
+	 * Retorna o tipo de visualização do oscilograma.
+	 * 
+	 * @return blnFullWaveform
+	 */
+	public boolean getFullWaveform() {
+		return blnFullWaveform;
+	}
+	
+	/**
+	 * Altera o tipo de visualização do oscilograma.
+	 * 
+	 * @return blnFullWaveform
+	 */
+	public void setFullWaveform(boolean blnFullWaveform) {
+		this.blnFullWaveform = blnFullWaveform;
+	}
+	
+	/**
+	 * Retorna o mapa de cores para a visualização do espectrograma.
+	 * 
+	 * @return strSpectrogramColorDisplay
+	 */
+	public String getSpectrogramColorDisplay() {
+		return strSpectrogramColorDisplay;
+	}
+
+	/**
+	 * Altera o mapa de cores para a visualização do espectrograma.
+	 * 
+	 * @param strSpectrogramColorDisplay
+	 */
+	public void setSpectrogramColorDisplay(String strSpectrogramColorDisplay) {
+		this.strSpectrogramColorDisplay = strSpectrogramColorDisplay;
+	}
+	
+	/**
+	 * Retorna o status de conexão com o banco de dados. <br>
+	 * <br>
+	 * <i>True</i> - Conexão estabelecida
+	 * <br>
+	 * <i>False</i> - Conexão falha
+	 * 
+	 * @return blnDatabaseStatus
+	 */
+	public boolean getDatabaseStatus() {
+		return blnDatabaseStatus;
+	}
+	
+	/**
+	 * Retorna a engine de banco de dados do WASIS.
+	 * 
+	 * @return strDatabaseEngine
+	 */
+	public String getDatabaseEngine() {
+		return strDatabaseEngine;
+	}
+	
+	/**
+	 * Retorna o servidor do banco de dados do WASIS.
+	 * 
+	 * @return strDatabaseServer
+	 */
+	public String getDatabaseServer() {
+		return strDatabaseServer;
+	}
+	
+	/**
+	 * Retorna o nome do banco de dados do WASIS.
+	 * 
+	 * @return strDatabaseName
+	 */
+	public String getDatabaseName() {
+		return strDatabaseName;
+	}
+
+	/**
+	 * Retorna o usuário do banco de dados do WASIS.
+	 * 
+	 * @return strDatabaseUser
+	 */
+	public String getDatabaseUser() {
+		return strDatabaseUser;
+	}
+
+	/**
+	 * Retorna a senha para acesso ao banco de dados do WASIS.
+	 * 
+	 * @return strDatabasePassword
+	 */
+	public String getDatabasePassword() {
+		return strDatabasePassword;
+	}
+	
+	/**
 	 * Retorna a data e hora que está rodando a instância atual.
 	 * 
 	 * @return dateInstance
@@ -104,12 +221,11 @@ public class WasisParameters {
 	 * Carrega os parâmetros principais do Wasis.
 	 */
 	private WasisParameters() {
-		this.rsBundle = ResourceBundle.getBundle("br.unicamp.fnjv.wasis.internationalization.LabelBundles", LTParameters.getInstance().getLocale());
 		this.dateInstance = new Date();
-
+		
 		LTParameters.getInstance().setColorComponentPanelBackground(COLOR_COMPONENT);
 		
-		loadDatabaseParameters();
+		loadParameters();
 	}
 	
 	/**
@@ -126,83 +242,156 @@ public class WasisParameters {
 	}
 	
 	/**
-	 * Carrega os parâmetros existentes no banco de dados.
+	 * Carrega os parâmetros do WASIS.
 	 */
-	protected void loadDatabaseParameters() {
-		this.blnDatabaseStatus = false;
-		this.strWasisUser = "wasis_user";
-		this.strLastFilePath = "C:/";
-		//this.strLanguage = "English";
-		
-		DatabaseConnection objDatabaseConnection = DatabaseConnection.getInstance();
-		
+	protected void loadParameters() {
 		try {
-			objDatabaseConnection.openConnection();
-			objDatabaseConnection.initiliazeStatement();
-			objDatabaseConnection.sqlCommand("SELECT wasis_user, last_file_path, language ");
-			objDatabaseConnection.sqlCommandAppend("FROM wasis_parameters ");
-			objDatabaseConnection.sqlCommandAppend("WHERE id = 1 ");
+			// Lê o arquivo XML
+			File fileXML = new File("WASIS-Parameters.xml");
+			DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+			DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+			Document document = dBuilder.parse(fileXML);
 			
-			ResultSet rsParameters = objDatabaseConnection.executeSelectQuery();
+			NodeList nList = document.getElementsByTagName("Config");
+			Node node;
+			Element element;
 			
-			while (rsParameters.next()) {
-				this.blnDatabaseStatus = true;
-				this.strWasisUser = rsParameters.getString("wasis_user");
-				this.strLastFilePath = rsParameters.getString("last_file_path");
-				//this.strLanguage = rsParameters.getString("language");
-				
-				// A linguagem default do WASIS é inglês
-				//String strLocaleLanguage = "en";
-				//String strLocaleCountry = "US";
-				//Locale localeTemp = new Locale(strLocaleLanguage, strLocaleCountry);
-				
-				// Verifica se é português
-				//if (strLanguage.toLowerCase().equals("portugues")) {
-				//	strLocaleLanguage = "pt";
-				//	strLocaleCountry = "BR";
+			for (int index = 0; index < nList.getLength(); index++) {
+				node = nList.item(index);
+		  
+				if (node.getNodeType() == Node.ELEMENT_NODE) {
+					element = (Element) node;
 					
-				//	localeTemp = new Locale(strLocaleLanguage, strLocaleCountry);
-				//}
-				
-				// Verifica se houve alteração na linguagem do WASIS
-				//if (this.locale != localeTemp) {
-				//	LTParameters.getInstance().setLocale(strLocaleLanguage, strLocaleCountry);
-				//}
+					strWasisUser = element.getElementsByTagName("WasisUser").item(0).getTextContent();
+					strLanguage = element.getElementsByTagName("Language").item(0).getTextContent();
+					strLastFilePath = element.getElementsByTagName("LastFilePath").item(0).getTextContent();
+					blnFullWaveform = Boolean.parseBoolean(element.getElementsByTagName("FullWaveform").item(0).getTextContent());
+					strSpectrogramColorDisplay = element.getElementsByTagName("SpectrogramColorDisplay").item(0).getTextContent();
+					strDatabaseEngine = element.getElementsByTagName("DatabaseEngine").item(0).getTextContent();
+					strDatabaseServer = element.getElementsByTagName("DatabaseServer").item(0).getTextContent();
+					strDatabaseName = element.getElementsByTagName("DatabaseName").item(0).getTextContent();
+					strDatabaseUser = element.getElementsByTagName("DatabaseUser").item(0).getTextContent();
+					strDatabasePassword = element.getElementsByTagName("DatabasePassword").item(0).getTextContent();
+				}
 			}
+			
+			// A linguagem default do WASIS é inglês
+			String strLocaleLanguage = "en";
+			String strLocaleCountry = "US";
+			
+			// Verifica se é português
+			if (strLanguage.toLowerCase().equals("português")) {
+				strLocaleLanguage = "pt";
+				strLocaleCountry = "BR";
+			}
+			
+			this.rsBundle = ResourceBundle.getBundle("br.unicamp.fnjv.wasis.internationalization.LabelBundles", new Locale(strLocaleLanguage, strLocaleCountry));
+
+			LTParameters.getInstance().setLocale(strLocaleLanguage, strLocaleCountry);
 
 		} catch (Exception e) {
 			e.printStackTrace();
-			
-		} finally {
-			objDatabaseConnection.rollBackTransaction();
-			objDatabaseConnection.closeConnection();
 		}
 	}
 	
 	/**
-	 * Altera o caminho do último arquivo de áudio
-	 * carregado no sistema.
-	 * 
-	 * @param strLastFilePath
+	 * Salva os parâmetros no arquivo XML.
 	 */
-	protected void setLastFilePath(String strLastFilePath) {
-		this.strLastFilePath = strLastFilePath;
-		
-		DatabaseConnection objDatabaseConnection = DatabaseConnection.getInstance();
-		
+	protected void saveParameters() {
 		try {
-			objDatabaseConnection.openConnection();
-			objDatabaseConnection.initiliazeStatement();
-			objDatabaseConnection.sqlCommand("UPDATE wasis_parameters ");
-			objDatabaseConnection.sqlCommandAppend("SET last_file_path = ?");
-			objDatabaseConnection.sqlCommandAppend("WHERE id = 1");
-			objDatabaseConnection.addParameter("last_file_path", LTDataTypes.STRING, strLastFilePath);
-			objDatabaseConnection.executeQuery();
-			objDatabaseConnection.commitTransaction();
+			// XML
+			DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+			DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
+			
+			// Parameters
+			Document doc = docBuilder.newDocument();
+			Element rootElement = doc.createElement("WASIS-Parameters");
+			doc.appendChild(rootElement);
+			
+			{
+				// Config
+				Element configElement = doc.createElement("Config");
+				rootElement.appendChild(configElement);
+				
+				{
+					// Wasis User
+					Element eWasisUser = doc.createElement("WasisUser");
+					eWasisUser.appendChild(doc.createTextNode(strWasisUser));
+					configElement.appendChild(eWasisUser);
+					
+					// Language
+					Element eLanguage = doc.createElement("Language");
+					eLanguage.appendChild(doc.createTextNode(strLanguage));
+					configElement.appendChild(eLanguage);
+					
+					// Last File Path
+					Element eLastFilePath = doc.createElement("LastFilePath");
+					eLastFilePath.appendChild(doc.createTextNode(strLastFilePath));
+					configElement.appendChild(eLastFilePath);
+					
+					// FullWaveform
+					Element eFullWaveform = doc.createElement("FullWaveform");
+					eFullWaveform.appendChild(doc.createTextNode("" + blnFullWaveform));
+					configElement.appendChild(eFullWaveform);
+					
+					// Spectrogram Color Display
+					Element eSpectrogramColorDisplay = doc.createElement("SpectrogramColorDisplay");
+					eSpectrogramColorDisplay.appendChild(doc.createTextNode(strSpectrogramColorDisplay));
+					configElement.appendChild(eSpectrogramColorDisplay);
+					
+					// Database Engine
+					Element eDatabaseEngine = doc.createElement("DatabaseEngine");
+					eDatabaseEngine.appendChild(doc.createTextNode(strDatabaseEngine));
+					configElement.appendChild(eDatabaseEngine);
+					
+					// Database Server
+					Element eDatabaseServer = doc.createElement("DatabaseServer");
+					eDatabaseServer.appendChild(doc.createTextNode(strDatabaseServer));
+					configElement.appendChild(eDatabaseServer);
+					
+					// Database Name
+					Element eDatabaseName = doc.createElement("DatabaseName");
+					eDatabaseName.appendChild(doc.createTextNode(strDatabaseName));
+					configElement.appendChild(eDatabaseName);
+					
+					// Database User
+					Element eDatabaseUser = doc.createElement("DatabaseUser");
+					eDatabaseUser.appendChild(doc.createTextNode(strDatabaseUser));
+					configElement.appendChild(eDatabaseUser);
+					
+					// Database Password
+					Element eDatabasePassword = doc.createElement("DatabasePassword");
+					eDatabasePassword.appendChild(doc.createTextNode(strDatabasePassword));
+					configElement.appendChild(eDatabasePassword);
+				}
+			}
+
+			// Salva arquivo XML
+			TransformerFactory transformerFactory = TransformerFactory.newInstance();
+			Transformer transformer = transformerFactory.newTransformer();
+			transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+			transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
+			
+			DOMSource domSource = new DOMSource(doc);
+			StreamResult streamResult = new StreamResult(new File("WASIS-Parameters.xml"));
+			
+			transformer.transform(domSource, streamResult);
 			
 		} catch (Exception e) {
 			e.printStackTrace();
-			
+		}	
+	}
+	
+	/**
+	 * Verifica se a conexão com o banco de dados está ativa.
+	 */
+	protected void checkDatabaseConnection() {
+		DatabaseConnection objDatabaseConnection = DatabaseConnection.getInstance();
+		
+		try {
+			blnDatabaseStatus = objDatabaseConnection.checkConnection();
+		} catch (Exception e) {
+			e.printStackTrace();
 		} finally {
 			objDatabaseConnection.rollBackTransaction();
 			objDatabaseConnection.closeConnection();

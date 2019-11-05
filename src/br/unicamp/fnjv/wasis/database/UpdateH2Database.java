@@ -11,6 +11,8 @@ import java.util.Iterator;
 
 import com.leandrotacioli.libs.LTDataTypes;
 
+import br.unicamp.fnjv.wasis.database.jdbc.DatabaseH2Connection;
+
 /**
  * Atualiza banco de dados.
  * 

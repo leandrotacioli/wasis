@@ -23,25 +23,24 @@ import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
 
-import br.unicamp.fnjv.wasis.audio.temporary.AudioTemporary;
-import br.unicamp.fnjv.wasis.audio.temporary.AudioTemporarySegments;
+import br.unicamp.fnjv.wasis.audio.AudioSegmentsValues;
+import br.unicamp.fnjv.wasis.audio.AudioTemporary;
 import br.unicamp.fnjv.wasis.graphics.GraphicPanel;
 import br.unicamp.fnjv.wasis.libs.ClockTransformations;
 import br.unicamp.fnjv.wasis.main.WasisParameters;
+import br.unicamp.fnjv.wasis.swing.WasisPanel;
 
 /**
  * Painel responsável pela exibição do espectrograma.
  * 
  * @author Leandro Tacioli
- * @version 4.1 - 08/Mai/2017
+ * @version 4.0 - 18/Out/2017
  */
 public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListener, MouseMotionListener {
 	private static final long serialVersionUID = -7191590714199695177L;
-
+	
 	private ResourceBundle rsBundle = WasisParameters.getInstance().getBundle();
 	
-	private Spectrogram objSpectrogram;           // Objeto do Espectrograma
-
     private int intInitialTimeTemporary;          // Tempo temporário inicial do áudio que está sendo mostrado na tela
     private int intFinalTimeTemporary;            // Tempo temporário final do áudio que está sendo mostrado na tela
     
@@ -51,8 +50,8 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
     private int intFinalFrequency;                // Frequência final do áudio que está sendo mostrada na tela
     private int intFinalFrequencyTemporary;       // Frequência temporária final do áudio que está sendo mostrada na tela
     
-	private int intInitialFrequencySelectionBox;  // Frequência inicial quando houver seleção pela 'Box Selection'
-	private int intFinalFrequencySelectionBox;    // Frequência final quando houver seleção pela 'Box Selection'
+	private int intInitialFrequencyAudioSegment;  // Frequência inicial quando houver seleção de um segmento de áudio
+	private int intFinalFrequencyAudioSegment;    // Frequência final quando houver seleção de um segmento de áudio
 	
 	private double dblFrequencyPerPixel;          // Taxa de frequência que deverá ser atribuída para cada pixel da imagem
 
@@ -65,44 +64,36 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
 	private List<SpectrogramGraphicPanelAxesValues> lstTimeAxisValues;       // Lista de valores do eixo de tempo
 	private List<SpectrogramGraphicPanelAxesValues> lstFrequencyAxisValues;  // Lista de valores do eixo de frequência
 
-	/**
-	 * Ponto âncora quando há uma seleção.
-	 */
+	/** Ponto âncora quando há uma seleção. */
 	private Point pointAnchor;
 	
-	/**
-	 * Lista de todas os segmentos de áudio (ROIS) do espectrograma.
-	 */
-	private List<AudioTemporarySegments> lstSegments;
+	/** Lista de todas os segmentos de áudio (ROIS) do espectrograma. */
+	private List<AudioSegmentsValues> lstAudioSegments;
 	
-	/**
-	 * Menu acionado com o botão direto do mouse.
-	 */
+	/** Menu acionado com o botão direto do mouse. */
 	private JPopupMenu popupMenu;
-	private JMenuItem menuItemAddNewSoundUnit;
-	private JMenuItem menuItemAddNewSoundUnitForNewSpecies;
-	private JMenuItem menuItemZoomCurrentSelection;
-	private JMenuItem menuItemShowSelectionList;
+	private JMenuItem menuItemAddNewAudioSegment;
+	private JMenuItem menuItemAddNewAudioSegmentForNewSpecies;
+	private JMenuItem menuItemZoomCurrentAudioSegment;
+	private JMenuItem menuItemShowAudioSegmentList;
 	
 	/**
 	 * Painel responsável pela exibição do espectrograma.
 	 * 
+	 * @param panelMain      - Painel do frame principal
 	 * @param objSpectrogram - Objeto do Espectrograma
 	 */
-	public SpectrogramGraphicPanel(Spectrogram objSpectrogram) {
-		super(objSpectrogram);
-		
-		this.objSpectrogram = objSpectrogram;
-		this.lstSegments = AudioTemporary.getAudioTemporary().get(objSpectrogram.getAudioTemporaryIndex()).getAudioTemporarySegments();
+	public SpectrogramGraphicPanel(WasisPanel panelMain, Spectrogram objSpectrogram) {
+		super(panelMain, objSpectrogram);
 		
 		this.setOpaque(false);
-		
-		this.createPopupMenu();
 		
 		this.addMouseListener(this);
 		this.addMouseMotionListener(this);
 		
-		super.setDrawSelectionLine(true);
+		this.createPopupMenu();
+		
+		lstAudioSegments = AudioTemporary.getAudioTemporary().get(super.getSpectrogram().getAudioWav().getAudioTemporaryIndex()).getAudioSegments();
 	}
 	
 	//*************************************************************************
@@ -110,14 +101,14 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
 	public void paintComponent(Graphics g) {
 		super.paintComponent(g);
 		
-		if (!objSpectrogram.getIsRenderingSpectrogram()) {
+		if (!super.getSpectrogram().getIsRenderingSpectrogram()) {
 			Graphics2D graphic2D = (Graphics2D) g;
 
-			super.setInitialTime(objSpectrogram.getInitialTime());
-			super.setFinalTime(objSpectrogram.getFinalTime());
-	
-			intInitialFrequency = objSpectrogram.getInitialFrequency();
-			intFinalFrequency = objSpectrogram.getFinalFrequency();
+			super.setInitialTime(super.getSpectrogram().getInitialTime());
+			super.setFinalTime(super.getSpectrogram().getFinalTime());
+			
+			intInitialFrequency = super.getSpectrogram().getInitialFrequency();
+			intFinalFrequency = super.getSpectrogram().getFinalFrequency();
 			
 			dblFrequencyPerPixel = (double) (intFinalFrequency - intInitialFrequency) / super.getPanelHeight();
 			
@@ -131,18 +122,16 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
 			// Espectrograma
 			// Verifica o tamanho do painel - Caso houver alteração no tamanho, é realizada novamente a renderização do espectrograma.
 			if (super.getPanelWidth() != super.getPanelWidthTemporary() || super.getPanelHeight() != super.getPanelHeightTemporary()) {
-				objSpectrogram.setPanelWidth(super.getPanelWidth());
-				objSpectrogram.setPanelHeight(super.getPanelHeight());
-
-				if (super.getPanelWidthTemporary() != 0 && super.getPanelHeightTemporary() != 0) {
-					objSpectrogram.scaleFinalImage(objSpectrogram.getSpectrogramFinalImage(), super.getPanelWidth(), super.getPanelHeight());
-				}
+				super.getSpectrogram().setPanelWidth(super.getPanelWidth());
+				super.getSpectrogram().setPanelHeight(super.getPanelHeight());
+				
+				super.getSpectrogram().scaleFinalImage();
 				
 				super.setPanelWidthTemporary(super.getPanelWidth());
 				super.setPanelHeightTemporary(super.getPanelHeight());
 			}
 			
-			graphic2D.drawImage(objSpectrogram.getSpectrogramFinalImage(), AXES_SIZE, 0, null);
+			graphic2D.drawImage(super.getSpectrogram().getSpectrogramFinalImage(), AXES_SIZE, 0, null);
 
 			// ******************************************************************************************************
 			// Linha de seleção
@@ -153,10 +142,10 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
 			super.drawPlayerLine(graphic2D);
 			
 			// ******************************************************************************************************
-			// Caixa de seleção
-			if (super.getDrawSelectionBox()) {
-				int intX_Initial = AXES_SIZE + (int) ((super.getInitialTimeSelectionBox() / super.getTimePerPixel()) - (super.getInitialTime() / super.getTimePerPixel()));
-				int intX_Final = AXES_SIZE + (int) ((super.getFinalTimeSelectionBox() / super.getTimePerPixel()) - (super.getInitialTime() / super.getTimePerPixel()));
+			// Caixa de seleção (ROI)
+			if (super.getDrawAudioSegment()) {
+				int intX_Initial = AXES_SIZE + (int) ((super.getInitialTimeAudioSegment() / super.getTimePerPixel()) - (super.getInitialTime() / super.getTimePerPixel()));
+				int intX_Final = AXES_SIZE + (int) ((super.getFinalTimeAudioSegment() / super.getTimePerPixel()) - (super.getInitialTime() / super.getTimePerPixel()));
 				int intWidth = intX_Final - intX_Initial;
 				
 				// Ajusta a posição do tempo, para não mostrar a seleção fora dos limites do espectrograma
@@ -166,29 +155,29 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
 				}
 				
 				// Frequência
-				int intY_Initial = super.getPanelHeight() - (int) ((intInitialFrequencySelectionBox / dblFrequencyPerPixel) - (intInitialFrequency / dblFrequencyPerPixel));
-				int intY_Final = super.getPanelHeight() - (int) ((intFinalFrequencySelectionBox / dblFrequencyPerPixel) - (intInitialFrequency / dblFrequencyPerPixel));
+				int intY_Initial = super.getPanelHeight() - (int) ((intInitialFrequencyAudioSegment / dblFrequencyPerPixel) - (intInitialFrequency / dblFrequencyPerPixel));
+				int intY_Final = super.getPanelHeight() - (int) ((intFinalFrequencyAudioSegment / dblFrequencyPerPixel) - (intInitialFrequency / dblFrequencyPerPixel));
 				int intHeight = intY_Initial - intY_Final;
 				
 				// 'intX_Initial' = Posição referente ao tempo inicial
 				// 'intY_Final'   = Posição referente a frequência final (pois a frequência é mostrada com o valor máximo no topo)
-				graphic2D.setComposite(super.COMPOSITE_SELECTION_BOX);
-				graphic2D.setColor(super.COLOR_SELECTION_BOX);
+				graphic2D.setComposite(super.COMPOSITE_AUDIO_SEGMENT);
+				graphic2D.setColor(super.getSpectrogram().getColorAudioSegmentBox());
 				graphic2D.fillRect(intX_Initial, intY_Final, intWidth, intHeight);
-
-	            // Desenha uma linha pontilhada ao redor da caixa de seleção
-				graphic2D.setComposite(super.COMPOSITE_SELECTION_BOX_BORDER);
-	            graphic2D.setStroke(super.STROKE_SELECTION_BOX_BORDER);
-	            graphic2D.draw(new Rectangle2D.Double(intX_Initial + 1, intY_Final + 1, intWidth - 2, intHeight - 2));
+				
+	            // Desenha uma linha pontilhada ao redor do segmento de áudio
+				graphic2D.setComposite(super.COMPOSITE_AUDIO_SEGMENT_BORDER);
+	            graphic2D.setStroke(super.STROKE_AUDIO_SEGMENT_BORDER);
+	            graphic2D.draw(new Rectangle2D.Double(intX_Initial, intY_Final, intWidth - 1, intHeight - 1));
 	        }
 			
 			// ******************************************************************************************************
 			// Lista de segmentos de áudio (ROIs)
-			if (lstSegments.size() > 0) {
-				for (int indexSelection = 0; indexSelection < lstSegments.size(); indexSelection++) {
+			if (lstAudioSegments.size() > 0) {
+				for (int indexAudioSegment = 0; indexAudioSegment < lstAudioSegments.size(); indexAudioSegment++) {
 					// Tempo
-					int intX_Initial = AXES_SIZE + (int) ((lstSegments.get(indexSelection).getInitialTime() / super.getTimePerPixel()) - (super.getInitialTime() / super.getTimePerPixel()));
-					int intX_Final = AXES_SIZE + (int) ((lstSegments.get(indexSelection).getFinalTime() / super.getTimePerPixel()) - (super.getInitialTime() / super.getTimePerPixel()));
+					int intX_Initial = AXES_SIZE + (int) ((lstAudioSegments.get(indexAudioSegment).getInitialTime() / super.getTimePerPixel()) - (super.getInitialTime() / super.getTimePerPixel()));
+					int intX_Final = AXES_SIZE + (int) ((lstAudioSegments.get(indexAudioSegment).getFinalTime() / super.getTimePerPixel()) - (super.getInitialTime() / super.getTimePerPixel()));
 					int intWidth = intX_Final - intX_Initial;
 					
 					// Ajusta a posição do tempo, para não mostrar a seleção fora dos limites do espectrograma
@@ -198,34 +187,34 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
 					}
 
 					// Frequência
-					int intY_Initial = super.getPanelHeight() - (int) ((lstSegments.get(indexSelection).getInitialFrequency() / dblFrequencyPerPixel) - (intInitialFrequency / dblFrequencyPerPixel));
-					int intY_Final = super.getPanelHeight() - (int) ((lstSegments.get(indexSelection).getFinalFrequency() / dblFrequencyPerPixel) - (intInitialFrequency / dblFrequencyPerPixel));
+					int intY_Initial = super.getPanelHeight() - (int) ((lstAudioSegments.get(indexAudioSegment).getInitialFrequency() / dblFrequencyPerPixel) - (intInitialFrequency / dblFrequencyPerPixel));
+					int intY_Final = super.getPanelHeight() - (int) ((lstAudioSegments.get(indexAudioSegment).getFinalFrequency() / dblFrequencyPerPixel) - (intInitialFrequency / dblFrequencyPerPixel));
 					int intHeight = intY_Initial - intY_Final;
 		            
-		            graphic2D.setComposite(super.COMPOSITE_SELECTION_BOX);
-		            graphic2D.setColor(super.COLOR_SELECTION_BOX);
+		            graphic2D.setComposite(super.COMPOSITE_AUDIO_SEGMENT);
+		            graphic2D.setColor(super.getSpectrogram().getColorAudioSegmentBox());
 		            
 		            // 'intX_Initial' = Posição referente ao tempo inicial
 					// 'intY_Final'   = Posição referente a frequência final (pois a frequência é mostrada com o valor máximo no topo)
 					graphic2D.fillRect(intX_Initial, intY_Final, intWidth, intHeight);
 		            
-					// Desenha uma linha pontilhada ao redor da caixa de seleção
-					graphic2D.setComposite(super.COMPOSITE_SELECTION_BOX_BORDER);
-		            graphic2D.setStroke(super.STROKE_SELECTION_BOX_BORDER);
-		            graphic2D.draw(new Rectangle2D.Double(intX_Initial + 1, intY_Final + 1, intWidth - 2, intHeight - 2));
+					// Desenha uma linha pontilhada ao redor do segmento de áudio
+					graphic2D.setComposite(super.COMPOSITE_AUDIO_SEGMENT_BORDER);
+		            graphic2D.setStroke(super.STROKE_AUDIO_SEGMENT_BORDER);
+		            graphic2D.draw(new Rectangle2D.Double(intX_Initial, intY_Final, intWidth - 1, intHeight - 1));
 		            
-		            // Informa a identificação dentro da caixa de seleção
-		            String strSoundUnit = lstSegments.get(indexSelection).getSoundUnit();
+		            // Informa a identificação dentro do segmento de áudio
+		            String strAudioSegment = lstAudioSegments.get(indexAudioSegment).getAudioSegment();
 		            
-		            if (lstSegments.get(indexSelection).getIdDatabase() != 0) {
-		            	graphic2D.setColor(new Color(65, 50, 225));     // Azul para as seleções armazenadas no banco de dados
+		            if (lstAudioSegments.get(indexAudioSegment).getIdDatabase() != 0) {
+		            	graphic2D.setColor(SpectrogramColorDisplay.getColorAudioSegmentIdSaved());
 		            } else {
-		            	graphic2D.setColor(new Color(30, 150, 50));     // Verde para as seleções temporárias
+		            	graphic2D.setColor(SpectrogramColorDisplay.getColorAudioSegmentIdNotSaved());
 		            }
 		            
 		            graphic2D.setFont(new Font("Tahoma", Font.BOLD, 12));
 		            graphic2D.setComposite(AlphaComposite.SrcOver.derive(0.75f));
-		            graphic2D.drawString(strSoundUnit, intX_Initial + 3, intY_Final + 12);
+		            graphic2D.drawString(strAudioSegment, intX_Initial + 3, intY_Final + 12);
 				}
 			}
 			
@@ -389,6 +378,7 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
     			
     			if (intNumMajorRegs > intMinValues || indexIncrement == fltIncrementHourMinute[0].length) {
     				adjustTimeAxisValues();
+    				
     				intNumMajorRegs = getNumRegsMajor(lstTimeAxisValues);
     				
     				if (intNumMajorRegs > intMinValues || indexIncrement == fltIncrementHourMinute[0].length) {
@@ -459,7 +449,6 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
     			lstTimeAxisValues = new ArrayList<SpectrogramGraphicPanelAxesValues>();
     			
     			for (float fltX = intInitialSecondsAxis; fltX <= intInitialSecondsAxis + intSeconds + 1; fltX += fltIncrementSecond[0][indexIncrement]) {
-    				
     				// Se o valor em milisegundos for múltiplo do divisor, mantém o valor
     				if (fltX % intDivider == 0) {
     					intMajorValue = (int) (fltX * 1000);
@@ -615,8 +604,7 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
 	}
 
 	/**
-	 * Retorna o total de registros primários existentes na lista
-	 * que contém os valores que serão visualizados nos eixos.
+	 * Retorna o total de registros primários existentes na lista que contém os valores que serão visualizados nos eixos.
 	 * 
 	 * @param lstAxisValues
 	 * 
@@ -725,21 +713,21 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
 	 * Realiza a inversão do valor da frequência final selecionada 
 	 * caso seja menor do que a frequência inicial selecionada.
 	 */
-	private void adjustFrequencySelectionValues() {
-        if (intFinalFrequencySelectionBox < intInitialFrequencySelectionBox) {
-        	int intInitialFrequencySelectionTemp = intInitialFrequencySelectionBox;
-        	int intFinalFrequencySelectionTemp = intFinalFrequencySelectionBox;
+	private void adjustAudioSegmentFrequencyValues() {
+        if (intFinalFrequencyAudioSegment < intInitialFrequencyAudioSegment) {
+        	int intInitialFrequencyAudioSegmentTemp = intInitialFrequencyAudioSegment;
+        	int intFinalFrequencyAudioSegmentTemp = intFinalFrequencyAudioSegment;
         	
-        	intInitialFrequencySelectionBox = intFinalFrequencySelectionTemp;
-        	intFinalFrequencySelectionBox = intInitialFrequencySelectionTemp;
+        	intInitialFrequencyAudioSegment = intFinalFrequencyAudioSegmentTemp;
+        	intFinalFrequencyAudioSegment = intInitialFrequencyAudioSegmentTemp;
         }
         
-        if (intInitialFrequencySelectionBox < intInitialFrequency) {
-        	intInitialFrequencySelectionBox = intInitialFrequency;
+        if (intInitialFrequencyAudioSegment < intInitialFrequency) {
+        	intInitialFrequencyAudioSegment = intInitialFrequency;
         }
         
-        if (intFinalFrequencySelectionBox > intFinalFrequency) {
-        	intFinalFrequencySelectionBox = intFinalFrequency;
+        if (intFinalFrequencyAudioSegment > intFinalFrequency) {
+        	intFinalFrequencyAudioSegment = intFinalFrequency;
         }
 	}
 
@@ -775,15 +763,15 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
 			}
 			
 			super.setTimeSelectionLine(intCurrentTime);
-			super.setInitialTimeSelectionBox(intCurrentTime);
-			super.setFinalTimeSelectionBox(intCurrentTime);
+			super.setInitialTimeAudioSegment(intCurrentTime);
+			super.setFinalTimeAudioSegment(intCurrentTime);
 			
-			intInitialFrequencySelectionBox = 0;
-			intFinalFrequencySelectionBox = 0;
+			intInitialFrequencyAudioSegment = 0;
+			intFinalFrequencyAudioSegment = 0;
 			
 			super.setDrawSelectionLine(true);
-			super.setDrawSelectionBox(false);
-			super.updateSpectrogramSelectedAudio(intCurrentTime, intCurrentTime, intCurrentTime, intInitialFrequencySelectionBox, intFinalFrequencySelectionBox, intInitialFrequency, intFinalFrequency, false);
+			super.setDrawAudioSegment(false);
+			super.updateSpectrogramSelectedAudio(intCurrentTime, intCurrentTime, intCurrentTime, intInitialFrequencyAudioSegment, intFinalFrequencyAudioSegment, intInitialFrequency, intFinalFrequency, false);
 			
 			popupMenu.setVisible(false);
 			
@@ -819,55 +807,55 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
 				// **************************************************************************************
 				// Ponto de seleção inicial é menor que o ponto de seleção atual
 				if (intAnchorPosition < intCurrentPosition) {
-					super.setInitialTimeSelectionBox((int) (super.getInitialTime() + (super.getTimePerPixel() * (intX - AXES_SIZE))));
-					super.setFinalTimeSelectionBox((int) (super.getInitialTime() + (super.getTimePerPixel() * intCurrentPosition)));
+					super.setInitialTimeAudioSegment((int) (super.getInitialTime() + (super.getTimePerPixel() * (intX - AXES_SIZE))));
+					super.setFinalTimeAudioSegment((int) (super.getInitialTime() + (super.getTimePerPixel() * intCurrentPosition)));
 					
 				// Ponto de seleção inicial é maior que o ponto de seleção atual
 				} else if (intAnchorPosition > intCurrentPosition) {
-					super.setInitialTimeSelectionBox((int) (super.getInitialTime() + (super.getTimePerPixel() * intCurrentPosition)));
-					super.setFinalTimeSelectionBox((int) (super.getInitialTime() + (super.getTimePerPixel() * intAnchorPosition)));
+					super.setInitialTimeAudioSegment((int) (super.getInitialTime() + (super.getTimePerPixel() * intCurrentPosition)));
+					super.setFinalTimeAudioSegment((int) (super.getInitialTime() + (super.getTimePerPixel() * intAnchorPosition)));
 				
 				// Ponto de seleção inicial é igual ao ponto de seleção atual
 				} else if (intAnchorPosition == intCurrentPosition) {
-					super.setInitialTimeSelectionBox((int) (super.getInitialTime() + (super.getTimePerPixel() * intAnchorPosition)));
-					super.setFinalTimeSelectionBox((int) (super.getInitialTime() + (super.getTimePerPixel() * intAnchorPosition)));
+					super.setInitialTimeAudioSegment((int) (super.getInitialTime() + (super.getTimePerPixel() * intAnchorPosition)));
+					super.setFinalTimeAudioSegment((int) (super.getInitialTime() + (super.getTimePerPixel() * intAnchorPosition)));
 				}
 	
 				// **************************************************************************************
 				// Permite seleção apenas a partir do início da imagem
 				if (intX < AXES_SIZE) {
 					intCurrentTime = super.getInitialTime();
-					super.setInitialTimeSelectionBox(super.getInitialTime());
-					super.setFinalTimeSelectionBox((int) (super.getInitialTime() + (super.getTimePerPixel() * intAnchorPosition)));
+					super.setInitialTimeAudioSegment(super.getInitialTime());
+					super.setFinalTimeAudioSegment((int) (super.getInitialTime() + (super.getTimePerPixel() * intAnchorPosition)));
 				}
 				
 				// Tempo final não pode ser maior que o tempo total do áudio
 				if (intCurrentTime > super.getFinalTime()) {
 					intCurrentTime = super.getFinalTime();
-					super.setFinalTimeSelectionBox(intCurrentTime);
+					super.setFinalTimeAudioSegment(intCurrentTime);
 				}
 
 				// **************************************************************************************
 				// Se o tempo inicial for igual ao final, é mostrada a linha de seleção
-				if (super.getInitialTimeSelectionBox() == super.getFinalTimeSelectionBox()) {
-					super.setTimeSelectionLine(super.getInitialTimeSelectionBox());
+				if (super.getInitialTimeAudioSegment() == super.getFinalTimeAudioSegment()) {
+					super.setTimeSelectionLine(super.getInitialTimeAudioSegment());
 					
-					intInitialFrequencySelectionBox = 0;
-					intFinalFrequencySelectionBox = 0;
+					intInitialFrequencyAudioSegment = 0;
+					intFinalFrequencyAudioSegment = 0;
 					
 					super.setDrawSelectionLine(true);
-					super.setDrawSelectionBox(false);
+					super.setDrawAudioSegment(false);
 					
 				} else {
-					updateFrequencySelectionInitialValues();
+					updateAudioSegmentFrequencyInitialValues();
 					
-					intFinalFrequencySelectionBox = (int) (intFinalFrequency - (dblFrequencyPerPixel * event.getY()));
+					intFinalFrequencyAudioSegment = (int) (intFinalFrequency - (dblFrequencyPerPixel * event.getY()));
 
 					super.setDrawSelectionLine(false);
-					super.setDrawSelectionBox(true);
+					super.setDrawAudioSegment(true);
 				}
 
-				super.updateSpectrogramSelectedAudio(intCurrentTime, super.getInitialTimeSelectionBox(), super.getFinalTimeSelectionBox(), intInitialFrequencySelectionBox, intFinalFrequencySelectionBox, intInitialFrequency, intFinalFrequency, false);
+				super.updateSpectrogramSelectedAudio(intCurrentTime, super.getInitialTimeAudioSegment(), super.getFinalTimeAudioSegment(), intInitialFrequencyAudioSegment, intFinalFrequencyAudioSegment, intInitialFrequency, intFinalFrequency, false);
 			
 			// A seleção é iniciada dentro do eixo de frequência
 			// e a posição atual é dentro do espectrograma
@@ -876,33 +864,33 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
 				int intCurrentTime = (int) (super.getInitialTime() + (super.getTimePerPixel() * intCurrentPosition));  // Tempo atual do áudio
 				
 				if (event.getY() > super.getPanelHeight()) {
-					if (intInitialFrequencySelectionBox == intFinalFrequencySelectionBox) {
+					if (intInitialFrequencyAudioSegment == intFinalFrequencyAudioSegment) {
 						super.setTimeSelectionLine(intCurrentTime);
-						super.setInitialTimeSelectionBox(intCurrentTime);
-						super.setFinalTimeSelectionBox(intCurrentTime);
+						super.setInitialTimeAudioSegment(intCurrentTime);
+						super.setFinalTimeAudioSegment(intCurrentTime);
 						super.setDrawSelectionLine(true);
-						super.setDrawSelectionBox(false);
+						super.setDrawAudioSegment(false);
 					}
 					
 				} else {
-					super.setInitialTimeSelectionBox((int) (super.getInitialTime()));
-					super.setFinalTimeSelectionBox((int) (super.getInitialTime() + (super.getTimePerPixel() * intCurrentPosition)));
+					super.setInitialTimeAudioSegment((int) (super.getInitialTime()));
+					super.setFinalTimeAudioSegment((int) (super.getInitialTime() + (super.getTimePerPixel() * intCurrentPosition)));
 
 					// Tempo final não pode ser maior que o tempo total do áudio
 					if (intCurrentTime > super.getFinalTime()) {
 						intCurrentTime = super.getFinalTime();
-						super.setFinalTimeSelectionBox(intCurrentTime);
+						super.setFinalTimeAudioSegment(intCurrentTime);
 					}
 	
-					updateFrequencySelectionInitialValues();
+					updateAudioSegmentFrequencyInitialValues();
 					
-					intFinalFrequencySelectionBox = (int) (intFinalFrequency - (dblFrequencyPerPixel * event.getY()));
+					intFinalFrequencyAudioSegment = (int) (intFinalFrequency - (dblFrequencyPerPixel * event.getY()));
 					
 					super.setDrawSelectionLine(false);
-					super.setDrawSelectionBox(true);
+					super.setDrawAudioSegment(true);
 				}
 				
-				super.updateSpectrogramSelectedAudio(intCurrentTime, super.getInitialTimeSelectionBox(), super.getFinalTimeSelectionBox(), intInitialFrequencySelectionBox, intFinalFrequencySelectionBox, intInitialFrequency, intFinalFrequency, false);
+				super.updateSpectrogramSelectedAudio(intCurrentTime, super.getInitialTimeAudioSegment(), super.getFinalTimeAudioSegment(), intInitialFrequencyAudioSegment, intFinalFrequencyAudioSegment, intInitialFrequency, intFinalFrequency, false);
 				
 			// A seleção é feita dentro do eixo do tempo
 			} else {
@@ -914,21 +902,21 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
 				}
 				
 				super.setTimeSelectionLine(intTimeMilliseconds);
-				super.setInitialTimeSelectionBox(intTimeMilliseconds);
-				super.setFinalTimeSelectionBox(intTimeMilliseconds);
+				super.setInitialTimeAudioSegment(intTimeMilliseconds);
+				super.setFinalTimeAudioSegment(intTimeMilliseconds);
 
-				intInitialFrequencySelectionBox = 0;
-				intFinalFrequencySelectionBox = 0;
+				intInitialFrequencyAudioSegment = 0;
+				intFinalFrequencyAudioSegment = 0;
 				
 				super.setDrawSelectionLine(true);
-				super.setDrawSelectionBox(false);
+				super.setDrawAudioSegment(false);
 				
-				super.updateSpectrogramSelectedAudio(intTimeMilliseconds, intTimeMilliseconds, intTimeMilliseconds, intInitialFrequencySelectionBox, intFinalFrequencySelectionBox, intInitialFrequency, intFinalFrequency, false);
+				super.updateSpectrogramSelectedAudio(intTimeMilliseconds, intTimeMilliseconds, intTimeMilliseconds, intInitialFrequencyAudioSegment, intFinalFrequencyAudioSegment, intInitialFrequency, intFinalFrequency, false);
 			}
 			
 			mouseMoved(event);
 			
-			adjustFrequencySelectionValues();
+			adjustAudioSegmentFrequencyValues();
 		}
 	}
 
@@ -967,64 +955,60 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
 	
 	//*************************************************************************
 	/**
-	 * Atualiza os valores inicial e final de seleção da frequência,
-	 * de acordo com o ponto inicial clicado pelo usuário.
+	 * Atualiza os valores inicial e final de seleção da frequência, de acordo com o ponto inicial clicado pelo usuário.
 	 */
-	private void updateFrequencySelectionInitialValues() {
-		intInitialFrequencySelectionBox = (int) (intFinalFrequency - (dblFrequencyPerPixel * pointAnchor.getY()));
+	private void updateAudioSegmentFrequencyInitialValues() {
+		intInitialFrequencyAudioSegment = (int) (intFinalFrequency - (dblFrequencyPerPixel * pointAnchor.getY()));
         
-        if (intInitialFrequencySelectionBox < 0) {
-        	intInitialFrequencySelectionBox = 0;
-        } else if (intInitialFrequencySelectionBox > intFinalFrequency) {
-        	intInitialFrequencySelectionBox = intFinalFrequency;
+        if (intInitialFrequencyAudioSegment < 0) {
+        	intInitialFrequencyAudioSegment = 0;
+        } else if (intInitialFrequencyAudioSegment > intFinalFrequency) {
+        	intInitialFrequencyAudioSegment = intFinalFrequency;
         }
         
-        intFinalFrequencySelectionBox = intInitialFrequencySelectionBox;
+        intFinalFrequencyAudioSegment = intInitialFrequencyAudioSegment;
 	}
 
 	/**
-     * Cria um menu que será ativado quando clicar 
-     * com o botão direito do mouse no espectrograma.
+     * Cria um menu que será ativado quando clicar com o botão direito do mouse no espectrograma.
      */
     private void createPopupMenu() {
     	popupMenu = new JPopupMenu();
     	
-    	// Adiciona uma nova vocalização
-    	menuItemAddNewSoundUnit = new JMenuItem(rsBundle.getString("spectrogram_graphic_panel_add_new_sound_unit"));
-    	popupMenu.add(menuItemAddNewSoundUnit);
-    	menuItemAddNewSoundUnit.addActionListener(new AddNewSoundUnit());
+    	// Adiciona um novo segmento de áudio
+    	menuItemAddNewAudioSegment = new JMenuItem(rsBundle.getString("spectrogram_graphic_panel_add_new_audio_segment"));
+    	popupMenu.add(menuItemAddNewAudioSegment);
+    	menuItemAddNewAudioSegment.addActionListener(new AddNewAudioSegment());
     	
-    	// Adiciona uma nova nota a vocalização anterior
-    	menuItemAddNewSoundUnitForNewSpecies = new JMenuItem(rsBundle.getString("spectrogram_graphic_panel_add_new_sound_unit_for_new_species"));
-    	popupMenu.add(menuItemAddNewSoundUnitForNewSpecies);
-    	menuItemAddNewSoundUnitForNewSpecies.addActionListener(new AddNewSoundUnitForNewSpecies());
-
+    	// Adiciona um novo segmento de áudio para uma espécie diferente
+    	menuItemAddNewAudioSegmentForNewSpecies = new JMenuItem(rsBundle.getString("spectrogram_graphic_panel_add_new_audio_segment_for_new_species"));
+    	popupMenu.add(menuItemAddNewAudioSegmentForNewSpecies);
+    	menuItemAddNewAudioSegmentForNewSpecies.addActionListener(new AddNewAudioSegmentForNewSpecies());
+    	
     	// Insere um zoom na seleção atual
-    	menuItemZoomCurrentSelection = new JMenuItem(rsBundle.getString("spectrogram_graphic_panel_zoom_in_selection"));
-    	popupMenu.add(menuItemZoomCurrentSelection);
-    	menuItemZoomCurrentSelection.addActionListener(new SetZoomSelection());
+    	menuItemZoomCurrentAudioSegment = new JMenuItem(rsBundle.getString("spectrogram_graphic_panel_zoom_in_audio_segment"));
+    	popupMenu.add(menuItemZoomCurrentAudioSegment);
+    	menuItemZoomCurrentAudioSegment.addActionListener(new SetZoomAudioSegment());
     	
     	// Separador do menu
     	popupMenu.addSeparator();
     	
-    	// Mostra a lista de vocalizações selecionadas
-    	menuItemShowSelectionList = new JMenuItem(rsBundle.getString("spectrogram_graphic_panel_show_selection_list"));
-    	popupMenu.add(menuItemShowSelectionList);
-    	menuItemShowSelectionList.addActionListener(new ShowBoxSelectionList());
-
+    	// Mostra a lista de segmentos de áudio
+    	menuItemShowAudioSegmentList = new JMenuItem(rsBundle.getString("spectrogram_graphic_panel_show_audio_segment_list"));
+    	popupMenu.add(menuItemShowAudioSegmentList);
+    	menuItemShowAudioSegmentList.addActionListener(new ShowAudioSegmentList());
+    	
     	this.addMouseListener(new PopupListener(popupMenu));
     }
     
     /**
-     * Cria <i>MouseAdapter</i> que será ativado quando clicar 
-     * com o botão direito do mouse no espectrograma.
+     * Cria <i>MouseAdapter</i> que será ativado quando clicar com o botão direito do mouse no espectrograma.
      */
     private class PopupListener extends MouseAdapter {
     	JPopupMenu popupMenu;
 
     	/**
-    	 * Cria <i>MouseAdapter</i> que será ativado quando clicar 
-    	 * com o botão direito do mouse no espectrograma.
+    	 * Cria <i>MouseAdapter</i> que será ativado quando clicar com o botão direito do mouse no espectrograma.
     	 * 
     	 * @param popupMenu
     	 */
@@ -1046,27 +1030,27 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
         	if (SwingUtilities.isRightMouseButton(event)) {
         		
         		// Habilita/desabilita os componentes do menu de acordo com as necessidades
-        		if (getDrawSelectionBox()) {
-        			menuItemAddNewSoundUnit.setEnabled(true);
-            		menuItemZoomCurrentSelection.setEnabled(true);
+        		if (getDrawAudioSegment()) {
+        			menuItemAddNewAudioSegment.setEnabled(true);
+            		menuItemZoomCurrentAudioSegment.setEnabled(true);
             	} else {
-            		menuItemAddNewSoundUnit.setEnabled(false);
-            		menuItemZoomCurrentSelection.setEnabled(false);
+            		menuItemAddNewAudioSegment.setEnabled(false);
+            		menuItemZoomCurrentAudioSegment.setEnabled(false);
             	}
         		
-        		if (lstSegments.size() > 0) {
-        			menuItemShowSelectionList.setEnabled(true);
+        		if (lstAudioSegments.size() > 0) {
+        			menuItemShowAudioSegmentList.setEnabled(true);
         		} else {
-        			menuItemAddNewSoundUnitForNewSpecies.setEnabled(false);
+        			menuItemAddNewAudioSegmentForNewSpecies.setEnabled(false);
         		}
         		
-        		if (lstSegments.size() > 0 && getDrawSelectionBox()) {
-        			menuItemAddNewSoundUnitForNewSpecies.setEnabled(true);
+        		if (lstAudioSegments.size() > 0 && getDrawAudioSegment()) {
+        			menuItemAddNewAudioSegmentForNewSpecies.setEnabled(true);
             	} else {
-            		menuItemAddNewSoundUnitForNewSpecies.setEnabled(false);
+            		menuItemAddNewAudioSegmentForNewSpecies.setEnabled(false);
             	}
         		
-        		if (getDrawSelectionBox() || lstSegments.size() != 0) {
+        		if (getDrawAudioSegment() || lstAudioSegments.size() != 0) {
         			popupMenu.show(event.getComponent(), event.getX(), event.getY());
         		}
         	}
@@ -1074,97 +1058,95 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
     }
     
     /**
-     * Adiciona uma nova unidade de som à lista de seleção.
+     * Adiciona um novo segmento de áudio de som à lista de seleção.
      */
-    private class AddNewSoundUnit implements ActionListener {  
-    	  
+    private class AddNewAudioSegment implements ActionListener {  
     	@Override
         public void actionPerformed(ActionEvent event) {
-    		String strSoundUnit = "A";
+    		String strAudioSegment = "A";
     		
-    		if (lstSegments.size() != 0) {
-	    		strSoundUnit = lstSegments.get(lstSegments.size() - 1).getSoundUnit();
+    		if (lstAudioSegments.size() != 0) {
+    			strAudioSegment = lstAudioSegments.get(lstAudioSegments.size() - 1).getAudioSegment();
 	    		
-				char chrSoundUnit[] = strSoundUnit.toCharArray();
+				char[] chrAudioSegment = strAudioSegment.toCharArray();
 				
-				// Retira os números da unidade de som
-				strSoundUnit = "";
-				String strLastSoundUnit = "";
-				for (int indexChr = 0; indexChr < chrSoundUnit.length; indexChr++) {
-					if (Character.isDigit(chrSoundUnit[indexChr])) {
-						strLastSoundUnit = strLastSoundUnit + chrSoundUnit[indexChr];
+				// Retira os números do segmento de áudio
+				strAudioSegment = "";
+				String strLastAudioSegment = "";
+				for (int indexChr = 0; indexChr < chrAudioSegment.length; indexChr++) {
+					if (Character.isDigit(chrAudioSegment[indexChr])) {
+						strLastAudioSegment = strLastAudioSegment + chrAudioSegment[indexChr];
 					}
 					
-					if (!Character.isDigit(chrSoundUnit[indexChr])) {
-						strSoundUnit = strSoundUnit + chrSoundUnit[indexChr];
+					if (!Character.isDigit(chrAudioSegment[indexChr])) {
+						strAudioSegment = strAudioSegment + chrAudioSegment[indexChr];
 					}
 				}
 	    		
-				int intLastSoundUnit = Integer.parseInt(strLastSoundUnit);
-				intLastSoundUnit = intLastSoundUnit + 1;
+				int intLastAudioSegment = Integer.parseInt(strLastAudioSegment);
+				intLastAudioSegment = intLastAudioSegment + 1;
 	    		
-				strSoundUnit = strSoundUnit + intLastSoundUnit;
+				strAudioSegment = strAudioSegment + intLastAudioSegment;
 				
     		} else {
-    			strSoundUnit = strSoundUnit + "1";
+    			strAudioSegment = strAudioSegment + "1";
     		}
 			
-    		AudioTemporary.createAudioTemporarySegment(objSpectrogram.getAudioWav(), strSoundUnit, getInitialTimeSelectionBox(), getFinalTimeSelectionBox(), intInitialFrequencySelectionBox, intFinalFrequencySelectionBox);
+    		AudioTemporary.createAudioSegment(getSpectrogram().getAudioWav(), strAudioSegment, getInitialTimeAudioSegment(), getFinalTimeAudioSegment(), intInitialFrequencyAudioSegment, intFinalFrequencyAudioSegment);
     		
-    		setDrawSelectionBox(false);
+    		setDrawAudioSegment(false);
     		
     		repaint();
         }
     }
     
     /**
-     * Adiciona uma nova unidade de som à uma nova espécie.
+     * Adiciona um novo segmento de áudio à uma nova espécie.
      */
-    private class AddNewSoundUnitForNewSpecies implements ActionListener {  
-    	  
+    private class AddNewAudioSegmentForNewSpecies implements ActionListener {  
     	@Override
         public void actionPerformed(ActionEvent event) {
-    		String strSoundUnit = "A";
+    		String strAudioSegment = "A";
     		
-    		if (lstSegments.size() != 0) {
-    			strSoundUnit = lstSegments.get(lstSegments.size() - 1).getSoundUnit();
+    		if (lstAudioSegments.size() != 0) {
+    			strAudioSegment = lstAudioSegments.get(lstAudioSegments.size() - 1).getAudioSegment();
     			
-    			char chrSoundUnit[] = strSoundUnit.toCharArray();
+    			char[] chrAudioSegment = strAudioSegment.toCharArray();
     			
-    			strSoundUnit = "";
+    			strAudioSegment = "";
     			
-    			for (int indexChr = 0; indexChr < chrSoundUnit.length; indexChr++) {
-    				if (!Character.isDigit(chrSoundUnit[indexChr])) {
-    					strSoundUnit = strSoundUnit + chrSoundUnit[indexChr];
+    			for (int indexChr = 0; indexChr < chrAudioSegment.length; indexChr++) {
+    				if (!Character.isDigit(chrAudioSegment[indexChr])) {
+    					strAudioSegment = strAudioSegment + chrAudioSegment[indexChr];
     				}
     			}
     			
-    			chrSoundUnit = strSoundUnit.toCharArray();
+    			chrAudioSegment = strAudioSegment.toCharArray();
     			
-    			if (chrSoundUnit.length == 1) {
-    				if (chrSoundUnit[0] == 'Z') {
-    					strSoundUnit = "AA";
+    			if (chrAudioSegment.length == 1) {
+    				if (chrAudioSegment[0] == 'Z') {
+    					strAudioSegment = "AA";
     				} else {
-    					char chrNewIdentification = (char) (chrSoundUnit[0] + 1);
-    					strSoundUnit = "" + chrNewIdentification;
+    					char chrNewIdentification = (char) (chrAudioSegment[0] + 1);
+    					strAudioSegment = "" + chrNewIdentification;
     				}
     				
-    			} else if (chrSoundUnit.length == 2) {
-    				if (chrSoundUnit[1] == 'Z') {
-    					char chrNewIdentification = (char) (chrSoundUnit[0] + 1);
-    					strSoundUnit = "" + chrNewIdentification + "A"; 
+    			} else if (chrAudioSegment.length == 2) {
+    				if (chrAudioSegment[1] == 'Z') {
+    					char chrNewIdentification = (char) (chrAudioSegment[0] + 1);
+    					strAudioSegment = "" + chrNewIdentification + "A"; 
     				} else {
-    					char chrNewIdentification = (char) (chrSoundUnit[1] + 1);
-    					strSoundUnit = "" + chrSoundUnit[0] + chrNewIdentification; 
+    					char chrNewIdentification = (char) (chrAudioSegment[1] + 1);
+    					strAudioSegment = "" + chrAudioSegment[0] + chrNewIdentification; 
     				}
     			}
     		}
     		
-    		strSoundUnit = strSoundUnit + "1";
+    		strAudioSegment = strAudioSegment + "1";
     		
-    		AudioTemporary.createAudioTemporarySegment(objSpectrogram.getAudioWav(), strSoundUnit, getInitialTimeSelectionBox(), getFinalTimeSelectionBox(), intInitialFrequencySelectionBox, intFinalFrequencySelectionBox);
+    		AudioTemporary.createAudioSegment(getSpectrogram().getAudioWav(), strAudioSegment, getInitialTimeAudioSegment(), getFinalTimeAudioSegment(), intInitialFrequencyAudioSegment, intFinalFrequencyAudioSegment);
     		
-    		setDrawSelectionBox(false);
+    		setDrawAudioSegment(false);
 		
     		repaint();
     		
@@ -1173,31 +1155,29 @@ public class SpectrogramGraphicPanel extends GraphicPanel implements MouseListen
     }
     
     /**
-     * Executa o zoom na caixa de seleção.
+     * Executa o zoom no segmento de áudio.
      */
-    private class SetZoomSelection implements ActionListener { 
+    private class SetZoomAudioSegment implements ActionListener { 
     	@Override
         public void actionPerformed(ActionEvent event) {
-    		objSpectrogram.setPanelWidth(getPanelWidth());
-    		objSpectrogram.setPanelHeight(getPanelHeight());
-    		
-    		objSpectrogram.setZoomSelection(getInitialTimeSelectionBox(), getFinalTimeSelectionBox(), intInitialFrequencySelectionBox, intFinalFrequencySelectionBox);
+    		getSpectrogram().setPanelWidth(getPanelWidth());
+    		getSpectrogram().setPanelHeight(getPanelHeight());
+    		getSpectrogram().setZoomAudioSegment(getInitialTimeAudioSegment(), getFinalTimeAudioSegment(), intInitialFrequencyAudioSegment, intFinalFrequencyAudioSegment);
     		
     		repaint();
     		
-    		updateSpectrogramSelectedAudio(getInitialTimeSelectionBox(), getInitialTimeSelectionBox(), getFinalTimeSelectionBox(), intInitialFrequencySelectionBox, intFinalFrequencySelectionBox, intInitialFrequency, intFinalFrequency, true);
+    		updateSpectrogramSelectedAudio(getInitialTimeAudioSegment(), getInitialTimeAudioSegment(), getFinalTimeAudioSegment(), intInitialFrequencyAudioSegment, intFinalFrequencyAudioSegment, intInitialFrequency, intFinalFrequency, true);
     	}
     }
     
     /**
-     * Mostra todas as seleções realizadas no espectrograma.
-     * Seleções normais e temporárias.
+     * Mostra todas os segmentos de áudios selecionados no espectrograma.
      */
-    private class ShowBoxSelectionList implements ActionListener {  
+    private class ShowAudioSegmentList implements ActionListener {  
     	@Override
         public void actionPerformed(ActionEvent event) {
-    		ScreenSpectrogramSelectionList objScreenSpectrogramSelectionList = new ScreenSpectrogramSelectionList(SpectrogramGraphicPanel.this);
-    		objScreenSpectrogramSelectionList.showScreen();
+    		ScreenSpectrogramAudioSegmentList objScreenSpectrogramAudioSegmentList = new ScreenSpectrogramAudioSegmentList(SpectrogramGraphicPanel.this);
+    		objScreenSpectrogramAudioSegmentList.showScreen();
 
     		repaint();
         }

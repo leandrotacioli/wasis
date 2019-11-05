@@ -1,13 +1,16 @@
 package br.unicamp.fnjv.wasis.libs;
 
 /**
+ * Perform matrix operations.
  * 
  * @author Leandro Tacioli
- *
+ * @version 1.0 - 01/Nov/2017
  */
 public class Matrices {
 	
-	
+	/**
+	 * Perform matrix operations.
+	 */
 	private Matrices() {
 		
 	}

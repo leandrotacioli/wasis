@@ -22,7 +22,7 @@ import br.unicamp.fnjv.wasis.swing.WasisDialog;
  * FFMPEG Encoder.
  * 
  * @author Leandro Tacioli
- * @version 2.0 - 12/Mai/2017
+ * @version 2.1 - 31/Mar/2018
  */
 public class FfmpegEncoder implements FfmpegWrapperListener {
 	private ResourceBundle rsBundle = WasisParameters.getInstance().getBundle();
@@ -82,7 +82,7 @@ public class FfmpegEncoder implements FfmpegWrapperListener {
 			});
 			
 			objWasisDialog = new WasisDialog(rsBundle.getString("ffmpeg_encoder_converting_audio_file"), false);
-			objWasisDialog.setBounds(275, 275, 275, 105);
+			objWasisDialog.setBounds(325, 325, 325, 105);
 			objWasisDialog.setResizable(false);
 			objWasisDialog.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 			
