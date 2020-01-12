@@ -4,7 +4,7 @@ package br.unicamp.fnjv.wasis.multimidia.ffmpegwrapper;
  * Cria o caminho do FFMPEG pré-compilado, verificando o sistema operacional utilizado.
  * 
  * @author Leandro Tacioli
- * @version 1.0 - 02/Oct/2013
+ * @version 1.1 - 12/Jan/2020
  */
 public class FfmpegExecutable {
 	private final String EXECUTABLE_PATH = "res/";
@@ -25,11 +25,14 @@ public class FfmpegExecutable {
 	protected FfmpegExecutable() {
 		String strOS = System.getProperty("os.name").toLowerCase();
 		
-		String strSuffix;
-		if (strOS.indexOf("windows") != -1) {
+		String strSuffix = "";
+		
+		if (strOS.contains("windows")) {
 			strSuffix = "ffmpeg-windows.exe";
-		} else {
+		} else if (strOS.contains("nux")) {
 			strSuffix = "ffmpeg-linux";
+		} else if (strOS.contains("mac")) {
+			strSuffix = "ffmpeg-mac";
 		}
 		
 		this.strFfmpegPath = EXECUTABLE_PATH + strSuffix;

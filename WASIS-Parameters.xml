@@ -6,10 +6,10 @@
         <LastFilePath>C:\</LastFilePath>
         <FullWaveform>false</FullWaveform>
         <SpectrogramColorDisplay>Grayscale</SpectrogramColorDisplay>
-        <DatabaseEngine>MySQL</DatabaseEngine>
+        <DatabaseEngine>H2</DatabaseEngine>
         <DatabaseServer>localhost</DatabaseServer>
-        <DatabaseName>wasis</DatabaseName>
-        <DatabaseUser>root</DatabaseUser>
-        <DatabasePassword>1234</DatabasePassword>
+        <DatabaseName>wasis.mv.db</DatabaseName>
+        <DatabaseUser>sa</DatabaseUser>
+        <DatabasePassword>Root@Wasis2014</DatabasePassword>
     </Config>
 </WASIS-Parameters>

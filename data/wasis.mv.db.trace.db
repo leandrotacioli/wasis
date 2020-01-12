@@ -1,0 +1,488 @@
+2018-04-03 20:37:16 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-03 20:37:16 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-03 20:37:16 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-03 20:37:48 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-03 20:37:48 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-03 20:37:48 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-03 20:45:15 database: flush
+org.h2.message.DbException: General error: "java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]" [50000-196]
+	at org.h2.message.DbException.get(DbException.java:168)
+	at org.h2.message.DbException.convert(DbException.java:295)
+	at org.h2.mvstore.db.MVTableEngine$1.uncaughtException(MVTableEngine.java:95)
+	at org.h2.mvstore.MVStore.panic(MVStore.java:378)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:361)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:2930)
+	at org.h2.mvstore.db.MVTableEngine$Store.open(MVTableEngine.java:155)
+	at org.h2.mvstore.db.MVTableEngine.init(MVTableEngine.java:100)
+	at org.h2.engine.Database.getPageStore(Database.java:2476)
+	at org.h2.engine.Database.open(Database.java:697)
+	at org.h2.engine.Database.openDatabase(Database.java:276)
+	at org.h2.engine.Database.<init>(Database.java:270)
+	at org.h2.engine.Engine.openSession(Engine.java:64)
+	at org.h2.engine.Engine.openSession(Engine.java:176)
+	at org.h2.engine.Engine.createSessionAndValidate(Engine.java:154)
+	at org.h2.engine.Engine.createSession(Engine.java:137)
+	at org.h2.engine.Engine.createSession(Engine.java:27)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:354)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:116)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:100)
+	at org.h2.Driver.connect(Driver.java:69)
+	at java.sql.DriverManager.getConnection(Unknown Source)
+	at java.sql.DriverManager.getConnection(Unknown Source)
+	at br.unicamp.fnjv.wasis.database.jdbc.DatabaseH2Connection.checkConnection(DatabaseH2Connection.java:82)
+	at br.unicamp.fnjv.wasis.main.WasisParameters.checkDatabaseConnection(WasisParameters.java:392)
+	at br.unicamp.fnjv.wasis.main.Wasis$24.actionPerformed(Wasis.java:766)
+	at javax.swing.Timer.fireActionPerformed(Unknown Source)
+	at javax.swing.Timer$DoPostEvent.run(Unknown Source)
+	at java.awt.event.InvocationEvent.dispatch(Unknown Source)
+	at java.awt.EventQueue.dispatchEventImpl(Unknown Source)
+	at java.awt.EventQueue.access$500(Unknown Source)
+	at java.awt.EventQueue$3.run(Unknown Source)
+	at java.awt.EventQueue$3.run(Unknown Source)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at java.security.ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege(Unknown Source)
+	at java.awt.EventQueue.dispatchEvent(Unknown Source)
+	at java.awt.EventDispatchThread.pumpOneEventForFilters(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEventsForFilter(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEventsForHierarchy(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEvents(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEvents(Unknown Source)
+	at java.awt.EventDispatchThread.run(Unknown Source)
+Caused by: org.h2.jdbc.JdbcSQLException: General error: "java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]" [50000-196]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:345)
+	... 42 more
+Caused by: java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]
+	at org.h2.mvstore.DataUtils.newIllegalStateException(DataUtils.java:765)
+	at org.h2.mvstore.FileStore.open(FileStore.java:173)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:347)
+	... 37 more
+2018-04-03 20:45:30 database: flush
+org.h2.message.DbException: General error: "java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]" [50000-196]
+	at org.h2.message.DbException.get(DbException.java:168)
+	at org.h2.message.DbException.convert(DbException.java:295)
+	at org.h2.mvstore.db.MVTableEngine$1.uncaughtException(MVTableEngine.java:95)
+	at org.h2.mvstore.MVStore.panic(MVStore.java:378)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:361)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:2930)
+	at org.h2.mvstore.db.MVTableEngine$Store.open(MVTableEngine.java:155)
+	at org.h2.mvstore.db.MVTableEngine.init(MVTableEngine.java:100)
+	at org.h2.engine.Database.getPageStore(Database.java:2476)
+	at org.h2.engine.Database.open(Database.java:697)
+	at org.h2.engine.Database.openDatabase(Database.java:276)
+	at org.h2.engine.Database.<init>(Database.java:270)
+	at org.h2.engine.Engine.openSession(Engine.java:64)
+	at org.h2.engine.Engine.openSession(Engine.java:176)
+	at org.h2.engine.Engine.createSessionAndValidate(Engine.java:154)
+	at org.h2.engine.Engine.createSession(Engine.java:137)
+	at org.h2.engine.Engine.createSession(Engine.java:27)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:354)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:116)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:100)
+	at org.h2.Driver.connect(Driver.java:69)
+	at java.sql.DriverManager.getConnection(Unknown Source)
+	at java.sql.DriverManager.getConnection(Unknown Source)
+	at br.unicamp.fnjv.wasis.database.jdbc.DatabaseH2Connection.checkConnection(DatabaseH2Connection.java:82)
+	at br.unicamp.fnjv.wasis.main.WasisParameters.checkDatabaseConnection(WasisParameters.java:392)
+	at br.unicamp.fnjv.wasis.main.Wasis$24.actionPerformed(Wasis.java:766)
+	at javax.swing.Timer.fireActionPerformed(Unknown Source)
+	at javax.swing.Timer$DoPostEvent.run(Unknown Source)
+	at java.awt.event.InvocationEvent.dispatch(Unknown Source)
+	at java.awt.EventQueue.dispatchEventImpl(Unknown Source)
+	at java.awt.EventQueue.access$500(Unknown Source)
+	at java.awt.EventQueue$3.run(Unknown Source)
+	at java.awt.EventQueue$3.run(Unknown Source)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at java.security.ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege(Unknown Source)
+	at java.awt.EventQueue.dispatchEvent(Unknown Source)
+	at java.awt.EventDispatchThread.pumpOneEventForFilters(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEventsForFilter(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEventsForHierarchy(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEvents(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEvents(Unknown Source)
+	at java.awt.EventDispatchThread.run(Unknown Source)
+Caused by: org.h2.jdbc.JdbcSQLException: General error: "java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]" [50000-196]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:345)
+	... 42 more
+Caused by: java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]
+	at org.h2.mvstore.DataUtils.newIllegalStateException(DataUtils.java:765)
+	at org.h2.mvstore.FileStore.open(FileStore.java:173)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:347)
+	... 37 more
+2018-04-03 20:45:45 database: flush
+org.h2.message.DbException: General error: "java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]" [50000-196]
+	at org.h2.message.DbException.get(DbException.java:168)
+	at org.h2.message.DbException.convert(DbException.java:295)
+	at org.h2.mvstore.db.MVTableEngine$1.uncaughtException(MVTableEngine.java:95)
+	at org.h2.mvstore.MVStore.panic(MVStore.java:378)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:361)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:2930)
+	at org.h2.mvstore.db.MVTableEngine$Store.open(MVTableEngine.java:155)
+	at org.h2.mvstore.db.MVTableEngine.init(MVTableEngine.java:100)
+	at org.h2.engine.Database.getPageStore(Database.java:2476)
+	at org.h2.engine.Database.open(Database.java:697)
+	at org.h2.engine.Database.openDatabase(Database.java:276)
+	at org.h2.engine.Database.<init>(Database.java:270)
+	at org.h2.engine.Engine.openSession(Engine.java:64)
+	at org.h2.engine.Engine.openSession(Engine.java:176)
+	at org.h2.engine.Engine.createSessionAndValidate(Engine.java:154)
+	at org.h2.engine.Engine.createSession(Engine.java:137)
+	at org.h2.engine.Engine.createSession(Engine.java:27)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:354)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:116)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:100)
+	at org.h2.Driver.connect(Driver.java:69)
+	at java.sql.DriverManager.getConnection(Unknown Source)
+	at java.sql.DriverManager.getConnection(Unknown Source)
+	at br.unicamp.fnjv.wasis.database.jdbc.DatabaseH2Connection.checkConnection(DatabaseH2Connection.java:82)
+	at br.unicamp.fnjv.wasis.main.WasisParameters.checkDatabaseConnection(WasisParameters.java:392)
+	at br.unicamp.fnjv.wasis.main.Wasis$24.actionPerformed(Wasis.java:766)
+	at javax.swing.Timer.fireActionPerformed(Unknown Source)
+	at javax.swing.Timer$DoPostEvent.run(Unknown Source)
+	at java.awt.event.InvocationEvent.dispatch(Unknown Source)
+	at java.awt.EventQueue.dispatchEventImpl(Unknown Source)
+	at java.awt.EventQueue.access$500(Unknown Source)
+	at java.awt.EventQueue$3.run(Unknown Source)
+	at java.awt.EventQueue$3.run(Unknown Source)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at java.security.ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege(Unknown Source)
+	at java.awt.EventQueue.dispatchEvent(Unknown Source)
+	at java.awt.EventDispatchThread.pumpOneEventForFilters(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEventsForFilter(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEventsForHierarchy(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEvents(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEvents(Unknown Source)
+	at java.awt.EventDispatchThread.run(Unknown Source)
+Caused by: org.h2.jdbc.JdbcSQLException: General error: "java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]" [50000-196]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:345)
+	... 42 more
+Caused by: java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]
+	at org.h2.mvstore.DataUtils.newIllegalStateException(DataUtils.java:765)
+	at org.h2.mvstore.FileStore.open(FileStore.java:173)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:347)
+	... 37 more
+2018-04-03 20:46:00 database: flush
+org.h2.message.DbException: General error: "java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]" [50000-196]
+	at org.h2.message.DbException.get(DbException.java:168)
+	at org.h2.message.DbException.convert(DbException.java:295)
+	at org.h2.mvstore.db.MVTableEngine$1.uncaughtException(MVTableEngine.java:95)
+	at org.h2.mvstore.MVStore.panic(MVStore.java:378)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:361)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:2930)
+	at org.h2.mvstore.db.MVTableEngine$Store.open(MVTableEngine.java:155)
+	at org.h2.mvstore.db.MVTableEngine.init(MVTableEngine.java:100)
+	at org.h2.engine.Database.getPageStore(Database.java:2476)
+	at org.h2.engine.Database.open(Database.java:697)
+	at org.h2.engine.Database.openDatabase(Database.java:276)
+	at org.h2.engine.Database.<init>(Database.java:270)
+	at org.h2.engine.Engine.openSession(Engine.java:64)
+	at org.h2.engine.Engine.openSession(Engine.java:176)
+	at org.h2.engine.Engine.createSessionAndValidate(Engine.java:154)
+	at org.h2.engine.Engine.createSession(Engine.java:137)
+	at org.h2.engine.Engine.createSession(Engine.java:27)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:354)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:116)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:100)
+	at org.h2.Driver.connect(Driver.java:69)
+	at java.sql.DriverManager.getConnection(Unknown Source)
+	at java.sql.DriverManager.getConnection(Unknown Source)
+	at br.unicamp.fnjv.wasis.database.jdbc.DatabaseH2Connection.checkConnection(DatabaseH2Connection.java:82)
+	at br.unicamp.fnjv.wasis.main.WasisParameters.checkDatabaseConnection(WasisParameters.java:392)
+	at br.unicamp.fnjv.wasis.main.Wasis$24.actionPerformed(Wasis.java:766)
+	at javax.swing.Timer.fireActionPerformed(Unknown Source)
+	at javax.swing.Timer$DoPostEvent.run(Unknown Source)
+	at java.awt.event.InvocationEvent.dispatch(Unknown Source)
+	at java.awt.EventQueue.dispatchEventImpl(Unknown Source)
+	at java.awt.EventQueue.access$500(Unknown Source)
+	at java.awt.EventQueue$3.run(Unknown Source)
+	at java.awt.EventQueue$3.run(Unknown Source)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at java.security.ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege(Unknown Source)
+	at java.awt.EventQueue.dispatchEvent(Unknown Source)
+	at java.awt.EventDispatchThread.pumpOneEventForFilters(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEventsForFilter(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEventsForHierarchy(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEvents(Unknown Source)
+	at java.awt.EventDispatchThread.pumpEvents(Unknown Source)
+	at java.awt.EventDispatchThread.run(Unknown Source)
+Caused by: org.h2.jdbc.JdbcSQLException: General error: "java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]" [50000-196]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:345)
+	... 42 more
+Caused by: java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]
+	at org.h2.mvstore.DataUtils.newIllegalStateException(DataUtils.java:765)
+	at org.h2.mvstore.FileStore.open(FileStore.java:173)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:347)
+	... 37 more
+2018-04-03 20:46:05 database: flush
+org.h2.message.DbException: General error: "java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]" [50000-196]
+	at org.h2.message.DbException.get(DbException.java:168)
+	at org.h2.message.DbException.convert(DbException.java:295)
+	at org.h2.mvstore.db.MVTableEngine$1.uncaughtException(MVTableEngine.java:95)
+	at org.h2.mvstore.MVStore.panic(MVStore.java:378)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:361)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:2930)
+	at org.h2.mvstore.db.MVTableEngine$Store.open(MVTableEngine.java:155)
+	at org.h2.mvstore.db.MVTableEngine.init(MVTableEngine.java:100)
+	at org.h2.engine.Database.getPageStore(Database.java:2476)
+	at org.h2.engine.Database.open(Database.java:697)
+	at org.h2.engine.Database.openDatabase(Database.java:276)
+	at org.h2.engine.Database.<init>(Database.java:270)
+	at org.h2.engine.Engine.openSession(Engine.java:64)
+	at org.h2.engine.Engine.openSession(Engine.java:176)
+	at org.h2.engine.Engine.createSessionAndValidate(Engine.java:154)
+	at org.h2.engine.Engine.createSession(Engine.java:137)
+	at org.h2.engine.Engine.createSession(Engine.java:27)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:354)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:116)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:100)
+	at org.h2.Driver.connect(Driver.java:69)
+	at java.sql.DriverManager.getConnection(Unknown Source)
+	at java.sql.DriverManager.getConnection(Unknown Source)
+	at br.unicamp.fnjv.wasis.database.jdbc.DatabaseH2Connection.openConnection(DatabaseH2Connection.java:67)
+	at br.unicamp.fnjv.wasis.audio.classification.ScreenAudioClassificationBruteForce.classifyAudioFromDatabase(ScreenAudioClassificationBruteForce.java:619)
+	at br.unicamp.fnjv.wasis.audio.classification.ScreenAudioClassificationBruteForce.access$11(ScreenAudioClassificationBruteForce.java:595)
+	at br.unicamp.fnjv.wasis.audio.classification.ScreenAudioClassificationBruteForce$4.doInBackground(ScreenAudioClassificationBruteForce.java:311)
+	at br.unicamp.fnjv.wasis.audio.classification.ScreenAudioClassificationBruteForce$4.doInBackground(ScreenAudioClassificationBruteForce.java:1)
+	at javax.swing.SwingWorker$1.call(Unknown Source)
+	at java.util.concurrent.FutureTask.run(Unknown Source)
+	at javax.swing.SwingWorker.run(Unknown Source)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+	at java.lang.Thread.run(Unknown Source)
+Caused by: org.h2.jdbc.JdbcSQLException: General error: "java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]" [50000-196]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:345)
+	... 34 more
+Caused by: java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]
+	at org.h2.mvstore.DataUtils.newIllegalStateException(DataUtils.java:765)
+	at org.h2.mvstore.FileStore.open(FileStore.java:173)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:347)
+	... 29 more
+2018-04-03 20:46:14 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-03 20:46:14 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-03 20:46:14 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-04 21:15:23 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-04 21:15:23 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-04 21:15:23 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-04 21:15:31 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-04 21:15:31 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-04 21:15:31 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:29:07 database: wrong user or password; user: "ROOT"
+org.h2.message.DbException: Wrong user name or password [28000-196]
+	at org.h2.message.DbException.get(DbException.java:179)
+	at org.h2.message.DbException.get(DbException.java:155)
+	at org.h2.message.DbException.get(DbException.java:144)
+	at org.h2.engine.Engine.openSession(Engine.java:104)
+	at org.h2.engine.Engine.openSession(Engine.java:176)
+	at org.h2.engine.Engine.createSessionAndValidate(Engine.java:154)
+	at org.h2.engine.Engine.createSession(Engine.java:137)
+	at org.h2.engine.Engine.createSession(Engine.java:27)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:354)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:116)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:100)
+	at org.h2.Driver.connect(Driver.java:69)
+	at java.sql.DriverManager.getConnection(Unknown Source)
+	at java.sql.DriverManager.getConnection(Unknown Source)
+	at br.unicamp.fnjv.wasis.database.jdbc.DatabaseH2Connection.openConnection(DatabaseH2Connection.java:67)
+	at br.unicamp.fnjv.wasis.main.MysqlToH2.updateDatabase(MysqlToH2.java:42)
+	at br.unicamp.fnjv.wasis.main.MysqlToH2.main(MysqlToH2.java:18)
+Caused by: org.h2.jdbc.JdbcSQLException: Wrong user name or password [28000-196]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:345)
+	... 17 more
+2018-04-05 05:39:27 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: Table "AUDIO_FILES_SEGMENTS_FEATURES_PS" already exists; SQL statement:
+CREATE TABLE PUBLIC.audio_files_segments_features_ps (
+	id_audio_segment_feature_ps BIGINT NOT NULL AUTO_INCREMENT,
+	fk_audio_file_segment BIGINT,
+	frequency_vector TEXT,
+	decibel_vector TEXT,
+	PRIMARY KEY (id_audio_segment_feature_ps)
+) [42101-195]
+2018-04-05 05:39:27 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: Index "AUDIO_FILES_SEGMENTS_FEATURES_PS_IX_01" already exists; SQL statement:
+CREATE INDEX PUBLIC.audio_files_segments_features_ps_IX_01 ON PUBLIC.audio_files_segments_features_ps (fk_audio_file_segment) [42111-195]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:345)
+	at org.h2.message.DbException.get(DbException.java:179)
+	at org.h2.message.DbException.get(DbException.java:155)
+	at org.h2.command.ddl.CreateIndex.update(CreateIndex.java:76)
+	at org.h2.command.CommandContainer.update(CommandContainer.java:101)
+	at org.h2.command.Command.executeUpdate(Command.java:260)
+	at org.h2.jdbc.JdbcStatement.executeInternal(JdbcStatement.java:193)
+	at org.h2.jdbc.JdbcStatement.execute(JdbcStatement.java:165)
+	at sun.reflect.GeneratedMethodAccessor56.invoke(Unknown Source)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(Unknown Source)
+	at java.lang.reflect.Method.invoke(Unknown Source)
+	at com.onseven.dbvis.g.B.B.ā(Z:2186)
+	at com.onseven.dbvis.g.B.F$A.call(Z:1369)
+	at java.util.concurrent.FutureTask.run(Unknown Source)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+	at java.lang.Thread.run(Unknown Source)
+2018-04-05 05:39:33 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:39:33 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:39:33 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:39:49 database: flush
+org.h2.message.DbException: General error: "java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]" [50000-196]
+	at org.h2.message.DbException.get(DbException.java:168)
+	at org.h2.message.DbException.convert(DbException.java:295)
+	at org.h2.mvstore.db.MVTableEngine$1.uncaughtException(MVTableEngine.java:95)
+	at org.h2.mvstore.MVStore.panic(MVStore.java:378)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:361)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:2930)
+	at org.h2.mvstore.db.MVTableEngine$Store.open(MVTableEngine.java:155)
+	at org.h2.mvstore.db.MVTableEngine.init(MVTableEngine.java:100)
+	at org.h2.engine.Database.getPageStore(Database.java:2476)
+	at org.h2.engine.Database.open(Database.java:697)
+	at org.h2.engine.Database.openDatabase(Database.java:276)
+	at org.h2.engine.Database.<init>(Database.java:270)
+	at org.h2.engine.Engine.openSession(Engine.java:64)
+	at org.h2.engine.Engine.openSession(Engine.java:176)
+	at org.h2.engine.Engine.createSessionAndValidate(Engine.java:154)
+	at org.h2.engine.Engine.createSession(Engine.java:137)
+	at org.h2.engine.Engine.createSession(Engine.java:27)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:354)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:116)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:100)
+	at org.h2.Driver.connect(Driver.java:69)
+	at java.sql.DriverManager.getConnection(Unknown Source)
+	at java.sql.DriverManager.getConnection(Unknown Source)
+	at br.unicamp.fnjv.wasis.database.jdbc.DatabaseH2Connection.openConnection(DatabaseH2Connection.java:67)
+	at br.unicamp.fnjv.wasis.main.MysqlToH2.updateDatabase(MysqlToH2.java:42)
+	at br.unicamp.fnjv.wasis.main.MysqlToH2.main(MysqlToH2.java:18)
+Caused by: org.h2.jdbc.JdbcSQLException: General error: "java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]" [50000-196]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:345)
+	... 26 more
+Caused by: java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]
+	at org.h2.mvstore.DataUtils.newIllegalStateException(DataUtils.java:765)
+	at org.h2.mvstore.FileStore.open(FileStore.java:173)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:347)
+	... 21 more
+2018-04-05 05:40:05 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:40:05 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:40:05 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:43:36 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: Table "AUDIO_FILES_SEGMENTS_FEATURES_PS" already exists; SQL statement:
+CREATE TABLE PUBLIC.audio_files_segments_features_ps (
+	id_audio_segment_feature_ps BIGINT NOT NULL AUTO_INCREMENT,
+	fk_audio_file_segment BIGINT,
+	frequency_vector TEXT,
+	decibel_vector TEXT,
+	PRIMARY KEY (id_audio_segment_feature_ps)
+) [42101-195]
+2018-04-05 05:43:36 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: Index "AUDIO_FILES_SEGMENTS_FEATURES_PS_IX_01" already exists; SQL statement:
+CREATE INDEX PUBLIC.audio_files_segments_features_ps_IX_01 ON PUBLIC.audio_files_segments_features_ps (fk_audio_file_segment) [42111-195]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:345)
+	at org.h2.message.DbException.get(DbException.java:179)
+	at org.h2.message.DbException.get(DbException.java:155)
+	at org.h2.command.ddl.CreateIndex.update(CreateIndex.java:76)
+	at org.h2.command.CommandContainer.update(CommandContainer.java:101)
+	at org.h2.command.Command.executeUpdate(Command.java:260)
+	at org.h2.jdbc.JdbcStatement.executeInternal(JdbcStatement.java:193)
+	at org.h2.jdbc.JdbcStatement.execute(JdbcStatement.java:165)
+	at sun.reflect.GeneratedMethodAccessor56.invoke(Unknown Source)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(Unknown Source)
+	at java.lang.reflect.Method.invoke(Unknown Source)
+	at com.onseven.dbvis.g.B.B.ā(Z:2186)
+	at com.onseven.dbvis.g.B.F$A.call(Z:1369)
+	at java.util.concurrent.FutureTask.run(Unknown Source)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+	at java.lang.Thread.run(Unknown Source)
+2018-04-05 05:45:28 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:45:28 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:45:28 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:45:38 database: flush
+org.h2.message.DbException: General error: "java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]" [50000-196]
+	at org.h2.message.DbException.get(DbException.java:168)
+	at org.h2.message.DbException.convert(DbException.java:295)
+	at org.h2.mvstore.db.MVTableEngine$1.uncaughtException(MVTableEngine.java:95)
+	at org.h2.mvstore.MVStore.panic(MVStore.java:378)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:361)
+	at org.h2.mvstore.MVStore$Builder.open(MVStore.java:2930)
+	at org.h2.mvstore.db.MVTableEngine$Store.open(MVTableEngine.java:155)
+	at org.h2.mvstore.db.MVTableEngine.init(MVTableEngine.java:100)
+	at org.h2.engine.Database.getPageStore(Database.java:2476)
+	at org.h2.engine.Database.open(Database.java:697)
+	at org.h2.engine.Database.openDatabase(Database.java:276)
+	at org.h2.engine.Database.<init>(Database.java:270)
+	at org.h2.engine.Engine.openSession(Engine.java:64)
+	at org.h2.engine.Engine.openSession(Engine.java:176)
+	at org.h2.engine.Engine.createSessionAndValidate(Engine.java:154)
+	at org.h2.engine.Engine.createSession(Engine.java:137)
+	at org.h2.engine.Engine.createSession(Engine.java:27)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:354)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:116)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:100)
+	at org.h2.Driver.connect(Driver.java:69)
+	at java.sql.DriverManager.getConnection(Unknown Source)
+	at java.sql.DriverManager.getConnection(Unknown Source)
+	at br.unicamp.fnjv.wasis.database.jdbc.DatabaseH2Connection.openConnection(DatabaseH2Connection.java:67)
+	at br.unicamp.fnjv.wasis.main.MysqlToH2.updateDatabase(MysqlToH2.java:42)
+	at br.unicamp.fnjv.wasis.main.MysqlToH2.main(MysqlToH2.java:18)
+Caused by: org.h2.jdbc.JdbcSQLException: General error: "java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]" [50000-196]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:345)
+	... 26 more
+Caused by: java.lang.IllegalStateException: The file is locked: nio:C:/Users/Leandro/Projetos - Java/WASIS/data/wasis.mv.db.mv.db [1.4.196/7]
+	at org.h2.mvstore.DataUtils.newIllegalStateException(DataUtils.java:765)
+	at org.h2.mvstore.FileStore.open(FileStore.java:173)
+	at org.h2.mvstore.MVStore.<init>(MVStore.java:347)
+	... 21 more
+2018-04-05 05:45:44 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:45:44 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:45:44 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:47:32 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:47:32 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:47:32 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:47:32 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:47:32 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:47:32 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:52:13 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:52:13 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 05:52:13 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 06:30:52 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 06:30:52 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 06:30:52 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 06:30:52 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 06:30:52 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]
+2018-04-05 06:30:52 jdbc[4]: exception
+org.h2.jdbc.JdbcSQLException: The object is already closed [90007-195]

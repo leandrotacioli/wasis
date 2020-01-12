@@ -1,0 +1,25 @@
+2018-04-03 20:39:20 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLException: Table "AUDIO_FILES" not found; SQL statement:
+SELECT seg.id_audio_segment, tax.animal_genus, tax.animal_species, seg.audio_segment, seg.time_initial, seg.time_final, seg.frequency_initial, seg.frequency_final  FROM       audio_files             aud  INNER JOIN audio_files_segments    seg   ON   seg.fk_audio_file      = aud.id_audio_file  INNER JOIN animal_taxonomies       tax   ON   seg.fk_animal_taxonomy = tax.id_animal_taxonomy  WHERE aud.audio_file_path = ?  AND aud.audio_file_hash = ?  AND seg.ind_active = ?  ORDER BY seg.id_audio_segment  [42102-196]
+2018-04-05 05:25:16 database: wrong user or password; user: "ROOT"
+org.h2.message.DbException: Wrong user name or password [28000-196]
+	at org.h2.message.DbException.get(DbException.java:179)
+	at org.h2.message.DbException.get(DbException.java:155)
+	at org.h2.message.DbException.get(DbException.java:144)
+	at org.h2.engine.Engine.openSession(Engine.java:104)
+	at org.h2.engine.Engine.openSession(Engine.java:176)
+	at org.h2.engine.Engine.createSessionAndValidate(Engine.java:154)
+	at org.h2.engine.Engine.createSession(Engine.java:137)
+	at org.h2.engine.Engine.createSession(Engine.java:27)
+	at org.h2.engine.SessionRemote.connectEmbeddedOrServer(SessionRemote.java:354)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:116)
+	at org.h2.jdbc.JdbcConnection.<init>(JdbcConnection.java:100)
+	at org.h2.Driver.connect(Driver.java:69)
+	at java.sql.DriverManager.getConnection(Unknown Source)
+	at java.sql.DriverManager.getConnection(Unknown Source)
+	at br.unicamp.fnjv.wasis.database.jdbc.DatabaseH2Connection.openConnection(DatabaseH2Connection.java:67)
+	at br.unicamp.fnjv.wasis.main.MysqlToH2.updateDatabase(MysqlToH2.java:38)
+	at br.unicamp.fnjv.wasis.main.MysqlToH2.main(MysqlToH2.java:18)
+Caused by: org.h2.jdbc.JdbcSQLException: Wrong user name or password [28000-196]
+	at org.h2.message.DbException.getJdbcSQLException(DbException.java:345)
+	... 17 more
