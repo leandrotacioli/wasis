@@ -1,0 +1,39 @@
+##############################
+## Java
+##############################
+*.class
+*.jar
+
+##############################
+## Maven
+##############################
+target/
+
+##############################
+## Eclipse
+##############################
+.settings/
+bin/
+tmp/
+.metadata
+.classpath
+.project
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.loadpath
+.factorypath
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### Outros arquivos ###
+/out
+/src/META-INF/MANIFEST.MF
+/res/ffmpeg-windows.exe
+/temp

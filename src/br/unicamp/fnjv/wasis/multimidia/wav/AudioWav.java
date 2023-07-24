@@ -5,6 +5,8 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Random;
@@ -669,6 +671,8 @@ public class AudioWav implements Cloneable {
 					
 					File fileSource = new File(strAudioFilePathOriginal);
 					File fileTarget = new File(strAudioFilePathTemporary);
+
+					Files.createDirectories(Paths.get(TARGET_PATH));
 					
 					// Realiza uma cópia do arquivo original para a pasta temporária (Esta cópia que será processada)
 			    	String strAudioFileCopied = TARGET_PATH + fileSource.getName();

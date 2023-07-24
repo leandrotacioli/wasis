@@ -93,13 +93,13 @@ import com.leandrotacioli.libs.swing.textfield.LTTextField;
  * Sistema WASIS.
  * 
  * @author Leandro Tacioli
- * @version 2.0.0 - 01/Abr/2018
+ * @version 2.1.0 - 24/Jul/2023
  */
 public class Wasis extends JFrame implements KeyListener, AudioLibraryListener, SpectrogramListener, WaveformListener, PlayerListener {
 	private static final long serialVersionUID = -5829047685955210342L;
 	
 	// Versão do Software
-	private final String WASIS_VERSION = "2.0.0 - 10/04/2018";
+	private final String WASIS_VERSION = "2.1.0 - 24/07/2023";
 	
 	// Pacote de linguagens
 	private ResourceBundle rsBundle = WasisParameters.getInstance().getBundle();
